@@ -2,25 +2,31 @@
 #include <algorithm>
 #include <cmath>
 
-Color Mix(Color a, Color b, float t) {
+Color Mix(Color a, Color b, float t)
+{
     t = std::clamp(t, 0.f, 1.f);
     return {a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, a.a + (b.a - a.a) * t};
 }
 
-static std::wstring PickFamily(IDWriteFontCollection* sys, std::initializer_list<const wchar_t*> names) {
-    for (auto n : names) {
+static std::wstring PickFamily(IDWriteFontCollection *sys, std::initializer_list<const wchar_t *> names)
+{
+    for (auto n : names)
+    {
         UINT32 idx;
         BOOL exists = FALSE;
-        if (sys && SUCCEEDED(sys->FindFamilyName(n, &idx, &exists)) && exists) return n;
+        if (sys && SUCCEEDED(sys->FindFamilyName(n, &idx, &exists)) && exists)
+            return n;
     }
     return *(names.end() - 1);
 }
 
-bool Gfx::Init() {
+bool Gfx::Init()
+{
     D2D1_FACTORY_OPTIONS opts{};
-    if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory1), &opts, (void**)&factory)))
+    if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory1), &opts, (void **)&factory)))
         return false;
-    if (FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory1), (IUnknown**)&dw))) return false;
+    if (FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory1), (IUnknown **)&dw)))
+        return false;
     CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&wic));
 
     float dashes[] = {2.5f, 2.5f};
@@ -32,7 +38,7 @@ bool Gfx::Init() {
                                                            D2D1_CAP_STYLE_ROUND, D2D1_LINE_JOIN_ROUND),
                                nullptr, 0, &roundCap_);
 
-    IDWriteFontCollection* sys = nullptr;
+    IDWriteFontCollection *sys = nullptr;
     dw->GetSystemFontCollection(&sys);
     std::wstring text = PickFamily(sys, {L"Segoe UI Variable Text", L"Segoe UI"});
     std::wstring display = PickFamily(sys, {L"Segoe UI Variable Display", L"Segoe UI"});
@@ -41,11 +47,12 @@ bool Gfx::Init() {
     std::wstring icons = PickFamily(sys, {L"Segoe Fluent Icons", L"Segoe MDL2 Assets"});
     SafeRelease(sys);
 
-    auto make = [&](F f, const std::wstring& fam, float size, DWRITE_FONT_WEIGHT w, float tracking = 0) {
-        IDWriteTextFormat*& fmt = fmt_[(int)f];
+    auto make = [&](F f, const std::wstring &fam, float size, DWRITE_FONT_WEIGHT w, float tracking = 0) {
+        IDWriteTextFormat *&fmt = fmt_[(int)f];
         dw->CreateTextFormat(fam.c_str(), nullptr, w, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, size,
                              L"en-us", &fmt);
-        if (!fmt) return;
+        if (!fmt)
+            return;
         fmt->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
         dw->CreateEllipsisTrimmingSign(fmt, &ellipsis_[(int)f]);
         tracking_[(int)f] = tracking;
@@ -71,21 +78,25 @@ bool Gfx::Init() {
     return true;
 }
 
-static void AfterBind(ID2D1RenderTarget* rt) {
+static void AfterBind(ID2D1RenderTarget *rt)
+{
     rt->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
     rt->SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
 }
 
-bool Gfx::BindHwnd(HWND h) {
+bool Gfx::BindHwnd(HWND h)
+{
     ReleaseTarget();
     RECT rc;
     GetClientRect(h, &rc);
-    auto props = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_DEFAULT,
-                                              D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE),
-                                              dpi_, dpi_);
+    auto props =
+        D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_DEFAULT,
+                                     D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE), dpi_, dpi_);
     auto hp = D2D1::HwndRenderTargetProperties(
-        h, D2D1::SizeU((UINT)std::max<LONG>(1, rc.right), (UINT)std::max<LONG>(1, rc.bottom)), D2D1_PRESENT_OPTIONS_NONE);
-    if (FAILED(factory->CreateHwndRenderTarget(props, hp, &hwndRt_))) return false;
+        h, D2D1::SizeU((UINT)std::max<LONG>(1, rc.right), (UINT)std::max<LONG>(1, rc.bottom)),
+        D2D1_PRESENT_OPTIONS_NONE);
+    if (FAILED(factory->CreateHwndRenderTarget(props, hp, &hwndRt_)))
+        return false;
     base_ = hwndRt_;
     base_->AddRef();
     base_->QueryInterface(&baseDc_);
@@ -96,13 +107,15 @@ bool Gfx::BindHwnd(HWND h) {
     return true;
 }
 
-bool Gfx::BindWic(IWICBitmap* bmp, float dpi) {
+bool Gfx::BindWic(IWICBitmap *bmp, float dpi)
+{
     ReleaseTarget();
     dpi_ = dpi;
-    auto props = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_DEFAULT,
-                                              D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED),
-                                              dpi, dpi);
-    if (FAILED(factory->CreateWicBitmapRenderTarget(bmp, props, &base_))) return false;
+    auto props = D2D1::RenderTargetProperties(
+        D2D1_RENDER_TARGET_TYPE_DEFAULT, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED),
+        dpi, dpi);
+    if (FAILED(factory->CreateWicBitmapRenderTarget(bmp, props, &base_)))
+        return false;
     base_->QueryInterface(&baseDc_);
     base_->CreateSolidColorBrush(D2D1::ColorF(0, 0, 0), &brush_);
     AfterBind(base_);
@@ -111,10 +124,13 @@ bool Gfx::BindWic(IWICBitmap* bmp, float dpi) {
     return true;
 }
 
-void Gfx::ReleaseTarget() {
-    for (auto& [k, b] : spanBrushes_) b->Release();
+void Gfx::ReleaseTarget()
+{
+    for (auto &[k, b] : spanBrushes_)
+        b->Release();
     spanBrushes_.clear();
-    for (auto& [k, s] : stops_) s->Release();
+    for (auto &[k, s] : stops_)
+        s->Release();
     stops_.clear();
     SafeRelease(blur_);
     SafeRelease(layerDc_);
@@ -127,21 +143,27 @@ void Gfx::ReleaseTarget() {
     dc = nullptr;
 }
 
-void Gfx::Resize(UINT w, UINT h) {
-    if (hwndRt_) hwndRt_->Resize(D2D1::SizeU(std::max(1u, w), std::max(1u, h)));
+void Gfx::Resize(UINT w, UINT h)
+{
+    if (hwndRt_)
+        hwndRt_->Resize(D2D1::SizeU(std::max(1u, w), std::max(1u, h)));
     SafeRelease(layerDc_);
     SafeRelease(layer_);
 }
 
-void Gfx::SetDpi(float dpi) {
+void Gfx::SetDpi(float dpi)
+{
     dpi_ = dpi;
-    if (base_) base_->SetDpi(dpi, dpi);
+    if (base_)
+        base_->SetDpi(dpi, dpi);
     SafeRelease(layerDc_);
     SafeRelease(layer_);
 }
 
-bool Gfx::Begin() {
-    if (!base_) return false;
+bool Gfx::Begin()
+{
+    if (!base_)
+        return false;
     rt = base_;
     dc = baseDc_;
     rt->BeginDraw();
@@ -150,125 +172,165 @@ bool Gfx::Begin() {
     return true;
 }
 
-bool Gfx::End() {
+bool Gfx::End()
+{
     HRESULT hr = base_->EndDraw();
-    if (hr == D2DERR_RECREATE_TARGET) {
+    if (hr == D2DERR_RECREATE_TARGET)
+    {
         ReleaseTarget();
         return false;
     }
     return true;
 }
 
-void Gfx::Frame() {
+void Gfx::Frame()
+{
     frame_++;
-    if (frame_ % 120 == 0) {
-        for (auto it = cache_.begin(); it != cache_.end();) {
-            if (it->second.used + 240 < frame_) {
+    if (frame_ % 120 == 0)
+    {
+        for (auto it = cache_.begin(); it != cache_.end();)
+        {
+            if (it->second.used + 240 < frame_)
+            {
                 it->second.layout->Release();
                 it = cache_.erase(it);
-            } else {
+            }
+            else
+            {
                 ++it;
             }
         }
     }
 }
 
-void Gfx::SetBrush(Color c) { brush_->SetColor(D2D1::ColorF(c.r, c.g, c.b, c.a * opacity)); }
+void Gfx::SetBrush(Color c)
+{
+    brush_->SetColor(D2D1::ColorF(c.r, c.g, c.b, c.a * opacity));
+}
 
-ID2D1SolidColorBrush* Gfx::SpanBrush(Color c) {
+ID2D1SolidColorBrush *Gfx::SpanBrush(Color c)
+{
     uint32_t key = ((uint32_t)(c.r * 255) << 16) | ((uint32_t)(c.g * 255) << 8) | (uint32_t)(c.b * 255);
     auto it = spanBrushes_.find(key);
-    ID2D1SolidColorBrush* b = nullptr;
-    if (it == spanBrushes_.end()) {
+    ID2D1SolidColorBrush *b = nullptr;
+    if (it == spanBrushes_.end())
+    {
         rt->CreateSolidColorBrush(D2D1::ColorF(c.r, c.g, c.b, 1.f), &b);
         spanBrushes_[key] = b;
-    } else {
+    }
+    else
+    {
         b = it->second;
     }
-    if (b) b->SetOpacity(c.a * opacity);
+    if (b)
+        b->SetOpacity(c.a * opacity);
     return b;
 }
 
-ID2D1GradientStopCollection* Gfx::Stops(Color a, Color b) {
+ID2D1GradientStopCollection *Gfx::Stops(Color a, Color b)
+{
     auto pack = [](Color c) {
         return ((uint64_t)(c.r * 255) << 24) | ((uint64_t)(c.g * 255) << 16) | ((uint64_t)(c.b * 255) << 8) |
                (uint64_t)(c.a * 255);
     };
     uint64_t key = (pack(a) << 32) | pack(b);
     auto it = stops_.find(key);
-    if (it != stops_.end()) return it->second;
+    if (it != stops_.end())
+        return it->second;
     D2D1_GRADIENT_STOP st[2] = {{0.f, D2D1::ColorF(a.r, a.g, a.b, a.a)}, {1.f, D2D1::ColorF(b.r, b.g, b.b, b.a)}};
-    ID2D1GradientStopCollection* s = nullptr;
+    ID2D1GradientStopCollection *s = nullptr;
     rt->CreateGradientStopCollection(st, 2, &s);
-    if (s) stops_[key] = s;
+    if (s)
+        stops_[key] = s;
     return s;
 }
 
-void Gfx::Clear(Color c) { rt->Clear(D2D1::ColorF(c.r, c.g, c.b, c.a)); }
+void Gfx::Clear(Color c)
+{
+    rt->Clear(D2D1::ColorF(c.r, c.g, c.b, c.a));
+}
 
-void Gfx::Fill(const Rect& r, Color c) {
-    if (c.a * opacity <= 0.002f) return;
+void Gfx::Fill(const Rect &r, Color c)
+{
+    if (c.a * opacity <= 0.002f)
+        return;
     SetBrush(c);
     rt->FillRectangle(r.D(), brush_);
 }
 
-void Gfx::Round(const Rect& r, float rad, Color c) {
-    if (c.a * opacity <= 0.002f || r.w <= 0 || r.h <= 0) return;
+void Gfx::Round(const Rect &r, float rad, Color c)
+{
+    if (c.a * opacity <= 0.002f || r.w <= 0 || r.h <= 0)
+        return;
     SetBrush(c);
     rad = std::min(rad, std::min(r.w, r.h) * 0.5f);
     rt->FillRoundedRectangle(D2D1::RoundedRect(r.D(), rad, rad), brush_);
 }
 
-void Gfx::RoundStroke(const Rect& r, float rad, Color c, float w, bool dashed) {
-    if (c.a * opacity <= 0.002f) return;
+void Gfx::RoundStroke(const Rect &r, float rad, Color c, float w, bool dashed)
+{
+    if (c.a * opacity <= 0.002f)
+        return;
     SetBrush(c);
     Rect s = r.Inset(w * 0.5f);
     rad = std::min(rad, std::min(s.w, s.h) * 0.5f);
     rt->DrawRoundedRectangle(D2D1::RoundedRect(s.D(), rad, rad), brush_, w, dashed ? dash_ : nullptr);
 }
 
-void Gfx::RoundGrad(const Rect& r, float rad, Color a, Color b, bool vertical) {
-    auto* stops = Stops(a, b);
-    if (!stops || r.w <= 0 || r.h <= 0) return;
-    ID2D1LinearGradientBrush* gb = nullptr;
+void Gfx::RoundGrad(const Rect &r, float rad, Color a, Color b, bool vertical)
+{
+    auto *stops = Stops(a, b);
+    if (!stops || r.w <= 0 || r.h <= 0)
+        return;
+    ID2D1LinearGradientBrush *gb = nullptr;
     D2D1_POINT_2F p0 = {r.x, r.y}, p1 = vertical ? D2D1_POINT_2F{r.x, r.B()} : D2D1_POINT_2F{r.R(), r.B()};
     rt->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(p0, p1), stops, &gb);
-    if (!gb) return;
+    if (!gb)
+        return;
     gb->SetOpacity(opacity);
     rad = std::min(rad, std::min(r.w, r.h) * 0.5f);
     rt->FillRoundedRectangle(D2D1::RoundedRect(r.D(), rad, rad), gb);
     gb->Release();
 }
 
-void Gfx::RadialGlow(float cx, float cy, float rx, float ry, Color c) {
+void Gfx::RadialGlow(float cx, float cy, float rx, float ry, Color c)
+{
     Color clear = c;
     clear.a = 0;
-    auto* stops = Stops(c, clear);
-    if (!stops) return;
-    ID2D1RadialGradientBrush* gb = nullptr;
+    auto *stops = Stops(c, clear);
+    if (!stops)
+        return;
+    ID2D1RadialGradientBrush *gb = nullptr;
     rt->CreateRadialGradientBrush(D2D1::RadialGradientBrushProperties({cx, cy}, {0, 0}, rx, ry), stops, &gb);
-    if (!gb) return;
+    if (!gb)
+        return;
     gb->SetOpacity(opacity);
     rt->FillEllipse(D2D1::Ellipse({cx, cy}, rx, ry), gb);
     gb->Release();
 }
 
-void Gfx::Circle(float cx, float cy, float rad, Color c) {
-    if (c.a * opacity <= 0.002f) return;
+void Gfx::Circle(float cx, float cy, float rad, Color c)
+{
+    if (c.a * opacity <= 0.002f)
+        return;
     SetBrush(c);
     rt->FillEllipse(D2D1::Ellipse({cx, cy}, rad, rad), brush_);
 }
 
-void Gfx::CircleStroke(float cx, float cy, float rad, Color c, float w) {
-    if (c.a * opacity <= 0.002f) return;
+void Gfx::CircleStroke(float cx, float cy, float rad, Color c, float w)
+{
+    if (c.a * opacity <= 0.002f)
+        return;
     SetBrush(c);
     rt->DrawEllipse(D2D1::Ellipse({cx, cy}, rad, rad), brush_, w);
 }
 
-void Gfx::Arc(float cx, float cy, float rad, float a0, float sweep, Color c, float w) {
-    ID2D1PathGeometry* geo = nullptr;
-    if (FAILED(factory->CreatePathGeometry(&geo))) return;
-    ID2D1GeometrySink* sink = nullptr;
+void Gfx::Arc(float cx, float cy, float rad, float a0, float sweep, Color c, float w)
+{
+    ID2D1PathGeometry *geo = nullptr;
+    if (FAILED(factory->CreatePathGeometry(&geo)))
+        return;
+    ID2D1GeometrySink *sink = nullptr;
     geo->Open(&sink);
     D2D1_POINT_2F p0 = {cx + rad * std::cos(a0), cy + rad * std::sin(a0)};
     D2D1_POINT_2F p1 = {cx + rad * std::cos(a0 + sweep), cy + rad * std::sin(a0 + sweep)};
@@ -283,16 +345,20 @@ void Gfx::Arc(float cx, float cy, float rad, float a0, float sweep, Color c, flo
     geo->Release();
 }
 
-void Gfx::Line(float x1, float y1, float x2, float y2, Color c, float w) {
-    if (c.a * opacity <= 0.002f) return;
+void Gfx::Line(float x1, float y1, float x2, float y2, Color c, float w)
+{
+    if (c.a * opacity <= 0.002f)
+        return;
     SetBrush(c);
     rt->DrawLine({x1, y1}, {x2, y2}, brush_, w, roundCap_);
 }
 
-void Gfx::Polygon(const D2D1_POINT_2F* pts, int n, Color c) {
-    ID2D1PathGeometry* geo = nullptr;
-    if (FAILED(factory->CreatePathGeometry(&geo))) return;
-    ID2D1GeometrySink* sink = nullptr;
+void Gfx::Polygon(const D2D1_POINT_2F *pts, int n, Color c)
+{
+    ID2D1PathGeometry *geo = nullptr;
+    if (FAILED(factory->CreatePathGeometry(&geo)))
+        return;
+    ID2D1GeometrySink *sink = nullptr;
     geo->Open(&sink);
     sink->BeginFigure(pts[0], D2D1_FIGURE_BEGIN_FILLED);
     sink->AddLines(pts + 1, n - 1);
@@ -304,20 +370,23 @@ void Gfx::Polygon(const D2D1_POINT_2F* pts, int n, Color c) {
     geo->Release();
 }
 
-void Gfx::PolygonGrad(const D2D1_POINT_2F* pts, int n, const Rect& box, Color a, Color b) {
-    auto* stops = Stops(a, b);
-    ID2D1PathGeometry* geo = nullptr;
-    if (!stops || FAILED(factory->CreatePathGeometry(&geo))) return;
-    ID2D1GeometrySink* sink = nullptr;
+void Gfx::PolygonGrad(const D2D1_POINT_2F *pts, int n, const Rect &box, Color a, Color b)
+{
+    auto *stops = Stops(a, b);
+    ID2D1PathGeometry *geo = nullptr;
+    if (!stops || FAILED(factory->CreatePathGeometry(&geo)))
+        return;
+    ID2D1GeometrySink *sink = nullptr;
     geo->Open(&sink);
     sink->BeginFigure(pts[0], D2D1_FIGURE_BEGIN_FILLED);
     sink->AddLines(pts + 1, n - 1);
     sink->EndFigure(D2D1_FIGURE_END_CLOSED);
     sink->Close();
     sink->Release();
-    ID2D1LinearGradientBrush* gb = nullptr;
+    ID2D1LinearGradientBrush *gb = nullptr;
     rt->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties({box.x, box.y}, {box.R(), box.B()}), stops, &gb);
-    if (gb) {
+    if (gb)
+    {
         gb->SetOpacity(opacity);
         rt->FillGeometry(geo, gb);
         gb->Release();
@@ -325,9 +394,11 @@ void Gfx::PolygonGrad(const D2D1_POINT_2F* pts, int n, const Rect& box, Color a,
     geo->Release();
 }
 
-void Gfx::Shadow(const Rect& r, float rad, float size, float alpha, float dy) {
+void Gfx::Shadow(const Rect &r, float rad, float size, float alpha, float dy)
+{
     const int n = 9;
-    for (int i = n; i >= 1; i--) {
+    for (int i = n; i >= 1; i--)
+    {
         float t = (float)i / n;
         float e = size * t;
         float a = alpha * shadowScale * 2.4f / n * (1 - t) * (1 - t);
@@ -335,18 +406,20 @@ void Gfx::Shadow(const Rect& r, float rad, float size, float alpha, float dy) {
     }
 }
 
-IDWriteTextLayout* Gfx::Layout(std::wstring_view s, F f, float maxW, float maxH, int align, bool vcenter, bool wrap,
-                               bool spans) {
+IDWriteTextLayout *Gfx::Layout(std::wstring_view s, F f, float maxW, float maxH, int align, bool vcenter, bool wrap,
+                               bool spans)
+{
     std::wstring key;
     key.reserve(s.size() + 40);
     key.append(s);
     key += Fmt(L"\x1%d|%d|%d|%d%d%d%d", (int)f, (int)(maxW * 4), (int)(maxH * 4), align, vcenter, wrap, spans);
     auto it = cache_.find(key);
-    if (it != cache_.end()) {
+    if (it != cache_.end())
+    {
         it->second.used = frame_;
         return it->second.layout;
     }
-    IDWriteTextLayout* l = nullptr;
+    IDWriteTextLayout *l = nullptr;
     if (!fmt_[(int)f] || FAILED(dw->CreateTextLayout(s.data(), (UINT32)s.size(), fmt_[(int)f], std::max(0.f, maxW),
                                                      std::max(0.f, maxH), &l)))
         return nullptr;
@@ -355,13 +428,16 @@ IDWriteTextLayout* Gfx::Layout(std::wstring_view s, F f, float maxW, float maxH,
                                           : DWRITE_TEXT_ALIGNMENT_LEADING);
     l->SetParagraphAlignment(vcenter ? DWRITE_PARAGRAPH_ALIGNMENT_CENTER : DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
     l->SetWordWrapping(wrap ? DWRITE_WORD_WRAPPING_WRAP : DWRITE_WORD_WRAPPING_NO_WRAP);
-    if (!wrap) {
+    if (!wrap)
+    {
         DWRITE_TRIMMING tr{DWRITE_TRIMMING_GRANULARITY_CHARACTER, 0, 0};
         l->SetTrimming(&tr, ellipsis_[(int)f]);
     }
-    if (tracking_[(int)f] != 0) {
-        IDWriteTextLayout1* l1 = nullptr;
-        if (SUCCEEDED(l->QueryInterface(&l1))) {
+    if (tracking_[(int)f] != 0)
+    {
+        IDWriteTextLayout1 *l1 = nullptr;
+        if (SUCCEEDED(l->QueryInterface(&l1)))
+        {
             l1->SetCharacterSpacing(0, tracking_[(int)f], 0, {0, (UINT32)s.size()});
             l1->Release();
         }
@@ -370,57 +446,85 @@ IDWriteTextLayout* Gfx::Layout(std::wstring_view s, F f, float maxW, float maxH,
     return l;
 }
 
-void Gfx::Text(std::wstring_view s, const Rect& r, Color c, F f, int align, bool vcenter, bool wrap, const Span* spans,
-               size_t nspans) {
-    if (s.empty() || r.w <= 1 || c.a * opacity <= 0.002f) return;
-    IDWriteTextLayout* l = Layout(s, f, r.w, r.h, align, vcenter, wrap, spans != nullptr);
-    if (!l) return;
-    for (size_t i = 0; i < nspans; i++) l->SetDrawingEffect(SpanBrush(spans[i].c), {spans[i].start, spans[i].len});
+void Gfx::Text(std::wstring_view s, const Rect &r, Color c, F f, int align, bool vcenter, bool wrap, const Span *spans,
+               size_t nspans)
+{
+    if (s.empty() || r.w <= 1 || c.a * opacity <= 0.002f)
+        return;
+    IDWriteTextLayout *l = Layout(s, f, r.w, r.h, align, vcenter, wrap, spans != nullptr);
+    if (!l)
+        return;
+    for (size_t i = 0; i < nspans; i++)
+        l->SetDrawingEffect(SpanBrush(spans[i].c), {spans[i].start, spans[i].len});
     SetBrush(c);
     rt->DrawTextLayout({r.x, r.y}, l, brush_, D2D1_DRAW_TEXT_OPTIONS_NONE);
 }
 
-void Gfx::ApplySpans(IDWriteTextLayout* l, const Span* spans, size_t n) {
-    for (size_t i = 0; i < n; i++) l->SetDrawingEffect(SpanBrush(spans[i].c), {spans[i].start, spans[i].len});
+void Gfx::ApplySpans(IDWriteTextLayout *l, const Span *spans, size_t n)
+{
+    for (size_t i = 0; i < n; i++)
+        l->SetDrawingEffect(SpanBrush(spans[i].c), {spans[i].start, spans[i].len});
 }
 
-void Gfx::DrawLayout(IDWriteTextLayout* l, float x, float y, Color c) {
+void Gfx::DrawLayout(IDWriteTextLayout *l, float x, float y, Color c)
+{
     SetBrush(c);
     rt->DrawTextLayout({x, y}, l, brush_, D2D1_DRAW_TEXT_OPTIONS_NONE);
 }
 
-float Gfx::TextW(std::wstring_view s, F f) {
-    if (s.empty()) return 0;
-    IDWriteTextLayout* l = Layout(s, f, 100000.f, 100.f, kLeft, false, false);
+float Gfx::TextW(std::wstring_view s, F f)
+{
+    if (s.empty())
+        return 0;
+    IDWriteTextLayout *l = Layout(s, f, 100000.f, 100.f, kLeft, false, false);
     DWRITE_TEXT_METRICS m{};
-    if (l) l->GetMetrics(&m);
+    if (l)
+        l->GetMetrics(&m);
     return m.widthIncludingTrailingWhitespace;
 }
 
-float Gfx::TextH(std::wstring_view s, F f, float maxW) {
-    if (s.empty()) return 0;
-    IDWriteTextLayout* l = Layout(s, f, maxW, 100000.f, kLeft, false, true);
+float Gfx::TextH(std::wstring_view s, F f, float maxW)
+{
+    if (s.empty())
+        return 0;
+    IDWriteTextLayout *l = Layout(s, f, maxW, 100000.f, kLeft, false, true);
     DWRITE_TEXT_METRICS m{};
-    if (l) l->GetMetrics(&m);
+    if (l)
+        l->GetMetrics(&m);
     return m.height;
 }
 
-void Gfx::PushClip(const Rect& r) { rt->PushAxisAlignedClip(r.D(), D2D1_ANTIALIAS_MODE_ALIASED); }
-void Gfx::PopClip() { rt->PopAxisAlignedClip(); }
-void Gfx::SetTransform(const D2D1_MATRIX_3X2_F& m) { rt->SetTransform(m); }
+void Gfx::PushClip(const Rect &r)
+{
+    rt->PushAxisAlignedClip(r.D(), D2D1_ANTIALIAS_MODE_ALIASED);
+}
+void Gfx::PopClip()
+{
+    rt->PopAxisAlignedClip();
+}
+void Gfx::SetTransform(const D2D1_MATRIX_3X2_F &m)
+{
+    rt->SetTransform(m);
+}
 
-bool Gfx::BeginLayer() {
-    if (!base_) return false;
+bool Gfx::BeginLayer()
+{
+    if (!base_)
+        return false;
     D2D1_SIZE_F sz = base_->GetSize();
-    if (layer_) {
+    if (layer_)
+    {
         D2D1_SIZE_F ls = layer_->GetSize();
-        if (std::fabs(ls.width - sz.width) > 0.5f || std::fabs(ls.height - sz.height) > 0.5f) {
+        if (std::fabs(ls.width - sz.width) > 0.5f || std::fabs(ls.height - sz.height) > 0.5f)
+        {
             SafeRelease(layerDc_);
             SafeRelease(layer_);
         }
     }
-    if (!layer_) {
-        if (FAILED(base_->CreateCompatibleRenderTarget(sz, &layer_))) return false;
+    if (!layer_)
+    {
+        if (FAILED(base_->CreateCompatibleRenderTarget(sz, &layer_)))
+            return false;
         layer_->QueryInterface(&layerDc_);
         AfterBind(layer_);
     }
@@ -431,20 +535,25 @@ bool Gfx::BeginLayer() {
     return true;
 }
 
-ID2D1Bitmap* Gfx::EndLayer() {
+ID2D1Bitmap *Gfx::EndLayer()
+{
     rt->EndDraw();
     rt = base_;
     dc = baseDc_;
-    ID2D1Bitmap* b = nullptr;
+    ID2D1Bitmap *b = nullptr;
     layer_->GetBitmap(&b);
     return b;
 }
 
-void Gfx::DrawBlurred(ID2D1Bitmap* bmp, float amount) {
+void Gfx::DrawBlurred(ID2D1Bitmap *bmp, float amount)
+{
     rt->SetTransform(D2D1::Matrix3x2F::Identity());
-    if (dc && amount > 0.25f) {
-        if (!blur_) dc->CreateEffect(CLSID_D2D1GaussianBlur, &blur_);
-        if (blur_) {
+    if (dc && amount > 0.25f)
+    {
+        if (!blur_)
+            dc->CreateEffect(CLSID_D2D1GaussianBlur, &blur_);
+        if (blur_)
+        {
             blur_->SetInput(0, bmp);
             blur_->SetValue(D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION, amount);
             blur_->SetValue(D2D1_GAUSSIANBLUR_PROP_BORDER_MODE, D2D1_BORDER_MODE_HARD);
@@ -456,16 +565,19 @@ void Gfx::DrawBlurred(ID2D1Bitmap* bmp, float amount) {
     rt->DrawBitmap(bmp);
 }
 
-bool Gfx::EncodePng(IWICBitmap* bmp, std::vector<uint8_t>& out) {
-    IStream* stream = nullptr;
-    if (FAILED(CreateStreamOnHGlobal(nullptr, TRUE, &stream))) return false;
-    IWICBitmapEncoder* enc = nullptr;
-    IWICBitmapFrameEncode* fr = nullptr;
+bool Gfx::EncodePng(IWICBitmap *bmp, std::vector<uint8_t> &out)
+{
+    IStream *stream = nullptr;
+    if (FAILED(CreateStreamOnHGlobal(nullptr, TRUE, &stream)))
+        return false;
+    IWICBitmapEncoder *enc = nullptr;
+    IWICBitmapFrameEncode *fr = nullptr;
     bool ok = SUCCEEDED(wic->CreateEncoder(GUID_ContainerFormatPng, nullptr, &enc)) &&
               SUCCEEDED(enc->Initialize(stream, WICBitmapEncoderNoCache)) &&
               SUCCEEDED(enc->CreateNewFrame(&fr, nullptr)) && SUCCEEDED(fr->Initialize(nullptr)) &&
               SUCCEEDED(fr->WriteSource(bmp, nullptr)) && SUCCEEDED(fr->Commit()) && SUCCEEDED(enc->Commit());
-    if (ok) {
+    if (ok)
+    {
         STATSTG st{};
         stream->Stat(&st, STATFLAG_NONAME);
         out.resize((size_t)st.cbSize.QuadPart);
@@ -480,16 +592,20 @@ bool Gfx::EncodePng(IWICBitmap* bmp, std::vector<uint8_t>& out) {
     return ok;
 }
 
-bool Gfx::SavePng(IWICBitmap* bmp, const std::wstring& path) {
+bool Gfx::SavePng(IWICBitmap *bmp, const std::wstring &path)
+{
     std::vector<uint8_t> png;
-    if (!EncodePng(bmp, png)) return false;
+    if (!EncodePng(bmp, png))
+        return false;
     return WriteFileAtomic(path, std::string(png.begin(), png.end()));
 }
 
-ID2D1PathGeometry* Gfx::CurvePath(const std::vector<D2D1_POINT_2F>& p, bool closeTo, float baseY) {
-    ID2D1PathGeometry* geo = nullptr;
-    if (p.size() < 2 || FAILED(factory->CreatePathGeometry(&geo))) return nullptr;
-    ID2D1GeometrySink* sink = nullptr;
+ID2D1PathGeometry *Gfx::CurvePath(const std::vector<D2D1_POINT_2F> &p, bool closeTo, float baseY)
+{
+    ID2D1PathGeometry *geo = nullptr;
+    if (p.size() < 2 || FAILED(factory->CreatePathGeometry(&geo)))
+        return nullptr;
+    ID2D1GeometrySink *sink = nullptr;
     geo->Open(&sink);
     sink->BeginFigure(p[0], closeTo ? D2D1_FIGURE_BEGIN_FILLED : D2D1_FIGURE_BEGIN_HOLLOW);
     size_t n = p.size();
@@ -498,7 +614,8 @@ ID2D1PathGeometry* Gfx::CurvePath(const std::vector<D2D1_POINT_2F>& p, bool clos
         float span = (i == 0 || i + 1 >= n) ? 1.f : 2.f;
         return D2D1_POINT_2F{(b.x - a.x) / span, (b.y - a.y) / span};
     };
-    for (size_t i = 0; i + 1 < n; i++) {
+    for (size_t i = 0; i + 1 < n; i++)
+    {
         D2D1_POINT_2F t0 = tangent(i), t1 = tangent(i + 1);
         D2D1_POINT_2F c1{p[i].x + t0.x / 3, p[i].y + t0.y / 3}, c2{p[i + 1].x - t1.x / 3, p[i + 1].y - t1.y / 3};
         // clamp control points so the curve doesn't overshoot
@@ -507,7 +624,8 @@ ID2D1PathGeometry* Gfx::CurvePath(const std::vector<D2D1_POINT_2F>& p, bool clos
         c2.y = std::clamp(c2.y, lo, hi);
         sink->AddBezier(D2D1::BezierSegment(c1, c2, p[i + 1]));
     }
-    if (closeTo) {
+    if (closeTo)
+    {
         sink->AddLine({p.back().x, baseY});
         sink->AddLine({p.front().x, baseY});
     }
@@ -517,26 +635,33 @@ ID2D1PathGeometry* Gfx::CurvePath(const std::vector<D2D1_POINT_2F>& p, bool clos
     return geo;
 }
 
-void Gfx::SmoothLine(const std::vector<D2D1_POINT_2F>& p, Color c, float w) {
-    ID2D1PathGeometry* geo = CurvePath(p, false, 0);
-    if (!geo) return;
+void Gfx::SmoothLine(const std::vector<D2D1_POINT_2F> &p, Color c, float w)
+{
+    ID2D1PathGeometry *geo = CurvePath(p, false, 0);
+    if (!geo)
+        return;
     SetBrush(c);
     rt->DrawGeometry(geo, brush_, w, roundCap_);
     geo->Release();
 }
 
-void Gfx::SmoothArea(const std::vector<D2D1_POINT_2F>& p, float baseY, Color top, Color bottom) {
-    ID2D1PathGeometry* geo = CurvePath(p, true, baseY);
-    auto* stops = Stops(top, bottom);
-    if (!geo || !stops) {
-        if (geo) geo->Release();
+void Gfx::SmoothArea(const std::vector<D2D1_POINT_2F> &p, float baseY, Color top, Color bottom)
+{
+    ID2D1PathGeometry *geo = CurvePath(p, true, baseY);
+    auto *stops = Stops(top, bottom);
+    if (!geo || !stops)
+    {
+        if (geo)
+            geo->Release();
         return;
     }
     float minY = baseY;
-    for (auto& q : p) minY = std::min(minY, q.y);
-    ID2D1LinearGradientBrush* gb = nullptr;
+    for (auto &q : p)
+        minY = std::min(minY, q.y);
+    ID2D1LinearGradientBrush *gb = nullptr;
     rt->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties({0, minY}, {0, baseY}), stops, &gb);
-    if (gb) {
+    if (gb)
+    {
         gb->SetOpacity(opacity);
         rt->FillGeometry(geo, gb);
         gb->Release();

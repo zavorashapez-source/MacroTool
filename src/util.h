@@ -11,7 +11,8 @@
 #include <vector>
 
 // parse error, msg is shown to the user
-struct FormatError {
+struct FormatError
+{
     std::wstring msg;
 };
 
@@ -25,19 +26,19 @@ bool IContains(std::wstring_view s, std::wstring_view needle);
 bool Contains(std::wstring_view s, std::wstring_view needle);
 // split on any char in seps
 std::vector<std::wstring> Split(std::wstring_view s, std::wstring_view seps, bool trim, bool removeEmpty);
-std::wstring Join(const std::vector<std::wstring>& parts, std::wstring_view sep);
-bool ParseInt(std::wstring_view s, int& v);
-std::wstring Fmt(const wchar_t* fmt, ...);
+std::wstring Join(const std::vector<std::wstring> &parts, std::wstring_view sep);
+bool ParseInt(std::wstring_view s, int &v);
+std::wstring Fmt(const wchar_t *fmt, ...);
 
 std::wstring ExeDir();
-std::wstring PathJoin(const std::wstring& a, const std::wstring& b);
-std::wstring FileStem(const std::wstring& path);
-bool FileExists(const std::wstring& path);
-bool DirExists(const std::wstring& path);
-bool ReadFileBytes(const std::wstring& path, std::string& out);
+std::wstring PathJoin(const std::wstring &a, const std::wstring &b);
+std::wstring FileStem(const std::wstring &path);
+bool FileExists(const std::wstring &path);
+bool DirExists(const std::wstring &path);
+bool ReadFileBytes(const std::wstring &path, std::string &out);
 // temp file + rename so a crash can't leave half a file
-bool WriteFileAtomic(const std::wstring& path, const std::string& data);
-std::wstring KnownFolder(const GUID& id);
+bool WriteFileAtomic(const std::wstring &path, const std::string &data);
+std::wstring KnownFolder(const GUID &id);
 
 long long QpcNow();
 double QpcToMs(long long ticks);

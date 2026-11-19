@@ -8,25 +8,27 @@
 #define FREE_BUILD 1
 #endif
 
-bool Ed25519Verify(const uint8_t sig[64], const uint8_t* msg, size_t n, const uint8_t pk[32]);
+bool Ed25519Verify(const uint8_t sig[64], const uint8_t *msg, size_t n, const uint8_t pk[32]);
 
-struct LicenseResult {
+struct LicenseResult
+{
     bool ok = false;
     std::wstring error;
-    std::wstring plan;     // subscription name, e.g. "default"
-    long long expiry = 0;  // unix seconds
+    std::wstring plan;    // subscription name, e.g. "default"
+    long long expiry = 0; // unix seconds
 };
 
-namespace License {
+namespace License
+{
 bool Configured();
 // blocking! init + license login bound to this pc
-LicenseResult Activate(const std::wstring& key);
+LicenseResult Activate(const std::wstring &key);
 std::wstring Hwid();
 // key is stored with DPAPI (per windows user)
 std::wstring LoadKey();
-void SaveKey(const std::wstring& key);
+void SaveKey(const std::wstring &key);
 void ForgetKey();
 // ed25519 check of timestamp+body against keyauth's public key
-bool VerifySigned(const std::string& timestamp, const std::string& body, const std::string& sigHex, long long nowSec,
-                  std::wstring* why);
-}  // namespace License
+bool VerifySigned(const std::string &timestamp, const std::string &body, const std::string &sigHex, long long nowSec,
+                  std::wstring *why);
+} // namespace License

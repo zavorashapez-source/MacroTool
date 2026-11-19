@@ -2,29 +2,37 @@
 #include "gfx.h"
 #include <algorithm>
 
-namespace Osd {
-namespace {
+namespace Osd
+{
+namespace
+{
 
-constexpr int kLogW = 230, kLogH = 56;  // logical size at 96 dpi
+constexpr int kLogW = 230, kLogH = 56; // logical size at 96 dpi
 constexpr UINT_PTR kTimerId = 1;
 
-Gfx* g = nullptr;
-IWICBitmap* wic = nullptr;
+Gfx *g = nullptr;
+IWICBitmap *wic = nullptr;
 HWND wnd = nullptr;
 HDC memDc = nullptr;
 HBITMAP dib = nullptr;
-void* dibBits = nullptr;
+void *dibBits = nullptr;
 int pxW = 0, pxH = 0;
 bool enabled = true;
 bool ready = false;
 double flashStart = 0;
 
-double Now() { return QpcToMs(QpcNow()); }
+double Now()
+{
+    return QpcToMs(QpcNow());
+}
 
 // draw the pill, copy into the dib
-bool RenderInto(bool on) {
-    if (!g || !wic) return false;
-    if (!g->BindWic(wic, (float)pxW / kLogW * 96.f)) return false;
+bool RenderInto(bool on)
+{
+    if (!g || !wic)
+        return false;
+    if (!g->BindWic(wic, (float)pxW / kLogW * 96.f))
+        return false;
     g->Begin();
     g->Clear({0, 0, 0, 0});
     Rect r{6, 4, (float)kLogW - 12, (float)kLogH - 8};
@@ -33,20 +41,24 @@ bool RenderInto(bool on) {
     g->RoundStroke(r, 14, WithA(accent, 0.55f), 1.2f);
     float cx = r.x + 22, cy = r.Cy();
     g->Circle(cx, cy, 5.5f, accent);
-    if (on) g->Circle(cx, cy, 9.f, WithA(accent, 0.25f));
+    if (on)
+        g->Circle(cx, cy, 9.f, WithA(accent, 0.25f));
     g->Text(on ? L"Macros ON" : L"Macros OFF", {r.x + 40, r.y, r.w - 52, r.h}, Rgb(0xF2F4F8), F::H3, kLeft);
     g->Text(L"", {r.R() - 34, r.y, 24, r.h}, WithA(accent, 0.8f), F::IconSm, kCenter);
     bool ok = g->End();
     g->ReleaseTarget();
-    if (!ok || !dibBits) return false;
+    if (!ok || !dibBits)
+        return false;
     // same byte order, straight copy
     UINT stride = pxW * 4;
-    wic->CopyPixels(nullptr, stride, stride * pxH, (BYTE*)dibBits);
+    wic->CopyPixels(nullptr, stride, stride * pxH, (BYTE *)dibBits);
     return true;
 }
 
-void Blit(int alpha) {
-    if (!wnd || !memDc) return;
+void Blit(int alpha)
+{
+    if (!wnd || !memDc)
+        return;
     HDC screen = GetDC(nullptr);
     SIZE sz{pxW, pxH};
     POINT src{0, 0};
@@ -55,7 +67,8 @@ void Blit(int alpha) {
     ReleaseDC(nullptr, screen);
 }
 
-void Position() {
+void Position()
+{
     HMONITOR mon = MonitorFromWindow(GetForegroundWindow(), MONITOR_DEFAULTTOPRIMARY);
     MONITORINFO mi{sizeof mi};
     GetMonitorInfoW(mon, &mi);
@@ -64,14 +77,19 @@ void Position() {
     SetWindowPos(wnd, HWND_TOPMOST, cx - pxW / 2, y, pxW, pxH, SWP_NOACTIVATE);
 }
 
-LRESULT CALLBACK Proc(HWND h, UINT m, WPARAM w, LPARAM l) {
-    if (m == WM_TIMER && w == kTimerId) {
+LRESULT CALLBACK Proc(HWND h, UINT m, WPARAM w, LPARAM l)
+{
+    if (m == WM_TIMER && w == kTimerId)
+    {
         double e = Now() - flashStart;
         const double hold = 1200, fade = 450;
-        if (e >= hold + fade) {
+        if (e >= hold + fade)
+        {
             KillTimer(h, kTimerId);
             ShowWindow(h, SW_HIDE);
-        } else {
+        }
+        else
+        {
             int a = e < hold ? 255 : (int)(255 * (1 - (e - hold) / fade));
             Blit(a);
         }
@@ -80,39 +98,50 @@ LRESULT CALLBACK Proc(HWND h, UINT m, WPARAM w, LPARAM l) {
     return DefWindowProcW(h, m, w, l);
 }
 
-int PxFromDpi() {
+int PxFromDpi()
+{
     UINT dpi = 96;
     HWND fg = GetForegroundWindow();
-    if (fg) dpi = GetDpiForWindow(fg);
-    if (dpi < 72 || dpi > 384) dpi = GetDpiForSystem();
+    if (fg)
+        dpi = GetDpiForWindow(fg);
+    if (dpi < 72 || dpi > 384)
+        dpi = GetDpiForSystem();
     return (int)dpi;
 }
 
-void EnsureSized(int dpi) {
+void EnsureSized(int dpi)
+{
     int w = kLogW * dpi / 96, h = kLogH * dpi / 96;
-    if (w == pxW && h == pxH && dib) return;
+    if (w == pxW && h == pxH && dib)
+        return;
     pxW = w;
     pxH = h;
-    if (dib) DeleteObject(dib);
+    if (dib)
+        DeleteObject(dib);
     BITMAPINFO bi{};
     bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bi.bmiHeader.biWidth = pxW;
-    bi.bmiHeader.biHeight = -pxH;  // top-down
+    bi.bmiHeader.biHeight = -pxH; // top-down
     bi.bmiHeader.biPlanes = 1;
     bi.bmiHeader.biBitCount = 32;
     bi.bmiHeader.biCompression = BI_RGB;
     dib = CreateDIBSection(memDc, &bi, DIB_RGB_COLORS, &dibBits, nullptr, 0);
-    if (dib) SelectObject(memDc, dib);
+    if (dib)
+        SelectObject(memDc, dib);
     SafeRelease(wic);
-    if (g && g->wic) g->wic->CreateBitmap(pxW, pxH, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, &wic);
+    if (g && g->wic)
+        g->wic->CreateBitmap(pxW, pxH, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, &wic);
 }
 
-}  // namespace
+} // namespace
 
-void Init() {
-    if (ready) return;
+void Init()
+{
+    if (ready)
+        return;
     g = new Gfx();
-    if (!g->Init() || !g->wic) return;
+    if (!g->Init() || !g->wic)
+        return;
     WNDCLASSW wc{};
     wc.lpfnWndProc = Proc;
     wc.hInstance = GetModuleHandleW(nullptr);
@@ -125,18 +154,23 @@ void Init() {
     ready = wnd && memDc && dib;
 }
 
-void Shutdown() {
-    if (wnd) {
+void Shutdown()
+{
+    if (wnd)
+    {
         KillTimer(wnd, kTimerId);
         DestroyWindow(wnd);
         wnd = nullptr;
     }
-    if (dib) DeleteObject(dib);
+    if (dib)
+        DeleteObject(dib);
     dib = nullptr;
-    if (memDc) DeleteDC(memDc);
+    if (memDc)
+        DeleteDC(memDc);
     memDc = nullptr;
     SafeRelease(wic);
-    if (g) {
+    if (g)
+    {
         g->ReleaseTarget();
         delete g;
         g = nullptr;
@@ -144,18 +178,23 @@ void Shutdown() {
     ready = false;
 }
 
-void SetEnabled(bool on) {
+void SetEnabled(bool on)
+{
     enabled = on;
-    if (!on && wnd) {
+    if (!on && wnd)
+    {
         KillTimer(wnd, kTimerId);
         ShowWindow(wnd, SW_HIDE);
     }
 }
 
-void Flash(bool macrosOn) {
-    if (!ready || !enabled) return;
+void Flash(bool macrosOn)
+{
+    if (!ready || !enabled)
+        return;
     EnsureSized(PxFromDpi());
-    if (!RenderInto(macrosOn)) return;
+    if (!RenderInto(macrosOn))
+        return;
     Position();
     flashStart = Now();
     Blit(255);
@@ -163,17 +202,21 @@ void Flash(bool macrosOn) {
     SetTimer(wnd, kTimerId, 16, nullptr);
 }
 
-bool RenderPng(bool macrosOn, const std::wstring& path) {
+bool RenderPng(bool macrosOn, const std::wstring &path)
+{
     bool temp = !ready;
-    if (temp) {
+    if (temp)
+    {
         g = new Gfx();
-        if (!g->Init() || !g->wic) return false;
+        if (!g->Init() || !g->wic)
+            return false;
         memDc = CreateCompatibleDC(nullptr);
         EnsureSized(96);
     }
-    if (!RenderInto(macrosOn)) return false;
+    if (!RenderInto(macrosOn))
+        return false;
     bool ok = g->SavePng(wic, path);
     return ok;
 }
 
-}  // namespace Osd
+} // namespace Osd

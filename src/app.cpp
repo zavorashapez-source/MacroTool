@@ -9,9 +9,13 @@
 #include <ctime>
 #include <thread>
 
-double NowSeconds() { return QpcToMs(QpcNow()) / 1000.0; }
+double NowSeconds()
+{
+    return QpcToMs(QpcNow()) / 1000.0;
+}
 
-void DrawLogo(Gfx& g, const Rect& r) {
+void DrawLogo(Gfx &g, const Rect &r)
+{
     g.Circle(r.Cx(), r.Cy(), r.w / 2, Rgb(0xE6F1FB));
     auto P = [&](float x, float y) { return D2D1_POINT_2F{r.x + x * r.w, r.y + y * r.h}; };
     D2D1_POINT_2F pts[7] = {P(.58f, .18f), P(.32f, .54f), P(.48f, .54f), P(.42f, .82f),
@@ -21,14 +25,18 @@ void DrawLogo(Gfx& g, const Rect& r) {
 
 // ---------------------------------------------------------------- lifecycle
 
-void App::Init(HWND hwnd, bool preview) {
+void App::Init(HWND hwnd, bool preview)
+{
     hwnd_ = hwnd;
     preview_ = preview;
     ui.hwnd = hwnd;
-    if (preview) {
+    if (preview)
+    {
         SetConfigReadOnly(true);
         cfg_ = Config::Defaults();
-    } else {
+    }
+    else
+    {
         cfg_ = Config::Load(&StartupWarning);
         stats_.Load();
     }
@@ -38,76 +46,98 @@ void App::Init(HWND hwnd, bool preview) {
     engine_.SetEnabled(cfg_.enabled);
     engine_.Reindex(cfg_);
     T = cfg_.theme == L"Light" ? kLight : kDark;
-    if (!preview) {
-        if (cfg_.highPriority) SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
+    if (!preview)
+    {
+        if (cfg_.highPriority)
+            SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
         Tester::SetNotify(hwnd, WM_APP_TESTER);
         Monitor::SetNotify(hwnd, WM_APP_MONITOR);
         Monitor::Configure(cfg_.timing, cfg_.pingHost);
-        engine_.SetLocked(false);  // no license gate
+        engine_.SetLocked(false); // no license gate
         engine_.Start(hwnd, WM_APP_ENGINE);
         Osd::SetEnabled(cfg_.osd);
         licensed_ = true;
         lic_.expiry = 0;
         SetTheme(cfg_.theme == L"Light");
-        if (!StartupWarning.empty()) Message(L"Settings were reset", StartupWarning, true);
+        if (!StartupWarning.empty())
+            Message(L"Settings were reset", StartupWarning, true);
         splashAt_ = NowSeconds();
     }
     startedAt_ = pageStart_ = NowSeconds();
 }
 
-void App::Shutdown() {
-    if (ed_.recording) engine_.EndRecord();
+void App::Shutdown()
+{
+    if (ed_.recording)
+        engine_.EndRecord();
     Tester::SetListening(false);
-    if (!preview_) {
-        if (stats_.dirty) stats_.Save();
+    if (!preview_)
+    {
+        if (stats_.dirty)
+            stats_.Save();
         engine_.Shutdown();
         Monitor::Shutdown();
     }
 }
 
 // columns for the Insert menu
-static std::vector<Menu::Column> MenuColumns(const Config& cfg) {
+static std::vector<Menu::Column> MenuColumns(const Config &cfg)
+{
     std::vector<Menu::Column> cols;
-    for (auto& cat : kCategories) {
+    for (auto &cat : kCategories)
+    {
         Menu::Column col{cat.name, cat.glyph, {}};
-        for (auto& m : cfg.macros)
+        for (auto &m : cfg.macros)
             if (m.category == cat.name)
                 col.items.push_back({m.id, m.name, m.trigger.empty() ? L"" : KeyLabel(m.trigger), m.enabled});
-        if (!col.items.empty()) cols.push_back(std::move(col));
+        if (!col.items.empty())
+            cols.push_back(std::move(col));
     }
     return cols;
 }
 
-void App::OnMenu(int id) {
-    if (id == 0) SetMaster(!cfg_.enabled);
-    else if (Macro* m = FindMacro(id)) {
+void App::OnMenu(int id)
+{
+    if (id == 0)
+        SetMaster(!cfg_.enabled);
+    else if (Macro *m = FindMacro(id))
+    {
         m->enabled = !m->enabled;
         Changed();
     }
     Menu::Update(MenuColumns(cfg_), cfg_.enabled);
 }
 
-void App::SaveCfg() {
-    if (!cfg_.Save()) ShowToast(L"Couldn't save macros.json next to the app.", 2);
+void App::SaveCfg()
+{
+    if (!cfg_.Save())
+        ShowToast(L"Couldn't save macros.json next to the app.", 2);
 }
 
-void App::Changed() {
+void App::Changed()
+{
     cfg_.AssignIds();
     SaveCfg();
     engine_.Reindex(cfg_);
-    if (!preview_) Monitor::Configure(cfg_.timing, cfg_.pingHost);
+    if (!preview_)
+        Monitor::Configure(cfg_.timing, cfg_.pingHost);
     RecomputeIssues();
 }
 
-void App::RecomputeIssues() {
+void App::RecomputeIssues()
+{
     issues_.clear();
     int toggleVk = VK_F8;
     KeyParse(cfg_.toggleKey, toggleVk);
-    for (auto& m : cfg_.macros) {
-        try {
+    for (auto &m : cfg_.macros)
+    {
+        try
+        {
             ParseSteps(m.steps, cfg_.binds);
             ParseSteps(m.releaseSteps, cfg_.binds);
-        } catch (const FormatError& e) {
+        }
+        catch (const FormatError &e)
+        {
             issues_[m.id] = {e.msg, true};
             continue;
         }
@@ -124,32 +154,45 @@ void App::RecomputeIssues() {
     }
 }
 
-Macro* App::FindMacro(int id) {
-    for (auto& m : cfg_.macros)
-        if (m.id == id) return &m;
+Macro *App::FindMacro(int id)
+{
+    for (auto &m : cfg_.macros)
+        if (m.id == id)
+            return &m;
     return nullptr;
 }
 
-bool App::IsMacroPage() const { return IsCategory(page_); }
+bool App::IsMacroPage() const
+{
+    return IsCategory(page_);
+}
 
-const wchar_t* App::PageGlyph(const std::wstring& p) const {
-    for (auto& c : kCategories)
-        if (p == c.name) return c.glyph;
-    if (p == L"Dashboard") return L"";
-    if (p == L"Tweaks") return L"";
-    if (p == L"Tester") return L"";
-    if (p == L"Profiles") return L"";
+const wchar_t *App::PageGlyph(const std::wstring &p) const
+{
+    for (auto &c : kCategories)
+        if (p == c.name)
+            return c.glyph;
+    if (p == L"Dashboard")
+        return L"";
+    if (p == L"Tweaks")
+        return L"";
+    if (p == L"Tester")
+        return L"";
+    if (p == L"Profiles")
+        return L"";
     return L"";
 }
 
-std::wstring App::TimingLabel() const {
+std::wstring App::TimingLabel() const
+{
     bool human = cfg_.timing == L"FrameHuman";
     return Fmt(L"Frame %s · %d ms per step", human ? L"better" : L"legacy", Monitor::frameMs.load());
 }
 
 // ---------------------------------------------------------------- capture, master, theme
 
-void App::StartCapture(Capture::Kind k, ID chip, int macroId, const std::wstring& bind) {
+void App::StartCapture(Capture::Kind k, ID chip, int macroId, const std::wstring &bind)
+{
     cap_.kind = k;
     cap_.chip = chip;
     cap_.macroId = macroId;
@@ -158,61 +201,77 @@ void App::StartCapture(Capture::Kind k, ID chip, int macroId, const std::wstring
     engine_.BeginCapture(cap_.token);
 }
 
-void App::CancelCapture() {
-    if (cap_.kind == Capture::None) return;
+void App::CancelCapture()
+{
+    if (cap_.kind == Capture::None)
+        return;
     engine_.CancelCapture();
     cap_.kind = Capture::None;
 }
 
-void App::ApplyCapture(int vk) {
+void App::ApplyCapture(int vk)
+{
     std::wstring name = KeyName(vk);
     Capture c = cap_;
     cap_.kind = Capture::None;
     ui.SetAnim(HashId(c.chip, 0x99), 1.f);
     int toggleVk = VK_F8;
     KeyParse(cfg_.toggleKey, toggleVk);
-    switch (c.kind) {
-        case Capture::MacroKey:
-            if (Macro* m = FindMacro(c.macroId)) {
-                if (m->trigger.empty()) m->enabled = true;  // new macro, turn it on once it has a key
-                m->trigger = name;
-                Changed();
-                if (vk == toggleVk) ShowToast(L"That's the on/off key, so this macro won't fire.", 2);
-            }
-            break;
-        case Capture::EditorKey: ed_.trigger = name; break;
-        case Capture::BindKey:
-            for (auto& b : cfg_.binds)
-                if (b.first == c.bind) b.second = name;
+    switch (c.kind)
+    {
+    case Capture::MacroKey:
+        if (Macro *m = FindMacro(c.macroId))
+        {
+            if (m->trigger.empty())
+                m->enabled = true; // new macro, turn it on once it has a key
+            m->trigger = name;
             Changed();
-            break;
-        case Capture::ToggleKey:
-            cfg_.toggleKey = name;
-            Changed();
-            ShowToast(Pretty(name) + L" now turns macros on and off.", 1);
-            break;
-        case Capture::ResetKey:
-            cfg_.editResetKey = name;
-            Changed();
-            break;
-        default: break;
+            if (vk == toggleVk)
+                ShowToast(L"That's the on/off key, so this macro won't fire.", 2);
+        }
+        break;
+    case Capture::EditorKey:
+        ed_.trigger = name;
+        break;
+    case Capture::BindKey:
+        for (auto &b : cfg_.binds)
+            if (b.first == c.bind)
+                b.second = name;
+        Changed();
+        break;
+    case Capture::ToggleKey:
+        cfg_.toggleKey = name;
+        Changed();
+        ShowToast(Pretty(name) + L" now turns macros on and off.", 1);
+        break;
+    case Capture::ResetKey:
+        cfg_.editResetKey = name;
+        Changed();
+        break;
+    default:
+        break;
     }
 }
 
-void App::SetMaster(bool on) {
+void App::SetMaster(bool on)
+{
     engine_.SetEnabled(on);
     cfg_.enabled = on;
     SaveCfg();
-    if (!on) running_.clear();
+    if (!on)
+        running_.clear();
 }
 
-void App::SetTheme(bool light) {
+void App::SetTheme(bool light)
+{
     std::wstring t = light ? L"Light" : L"Dark";
-    if (cfg_.theme != t) {
+    if (cfg_.theme != t)
+    {
         cfg_.theme = t;
         SaveCfg();
     }
-    if (!hwnd_) return;
+    if (!hwnd_)
+        return;
     BOOL dark = !light;
     DwmSetWindowAttribute(hwnd_, 20 /*DWMWA_USE_IMMERSIVE_DARK_MODE*/, &dark, sizeof dark);
     COLORREF border = light ? RGB(0xD5, 0xDA, 0xE5) : RGB(0x1C, 0x24, 0x36);
@@ -221,93 +280,123 @@ void App::SetTheme(bool light) {
 
 // ---------------------------------------------------------------- events
 
-void App::OnEngine() {
+void App::OnEngine()
+{
     double now = NowSeconds();
-    for (auto& m : engine_.Drain()) {
-        switch (m.type) {
-            case EngineMsg::Fired:
-                running_.insert(m.macroId);
-                flash_[m.macroId] = now;
-                if (Macro* x = FindMacro(m.macroId)) {
-                    lastFired_ = x->name;
-                    stats_.Add(x->name);
-                    recent_.push_front({x->name, KeyLabel(x->trigger), now});
-                    if (recent_.size() > 40) recent_.pop_back();
-                }
-                lastFiredAt_ = now;
-                break;
-            case EngineMsg::Stopped: running_.erase(m.macroId); break;
-            case EngineMsg::Toggled:
-                cfg_.enabled = engine_.Enabled();
-                SaveCfg();
-                if (!cfg_.enabled) running_.clear();
-                Osd::Flash(cfg_.enabled);
-                Menu::Update(MenuColumns(cfg_), cfg_.enabled);
-                break;
-            case EngineMsg::Menu:
-                if (Menu::IsOpen()) Menu::Hide();
-                else Menu::Show(MenuColumns(cfg_), cfg_.enabled);
-                break;
-            case EngineMsg::Captured:
-                if (cap_.kind != Capture::None && m.token == cap_.token) ApplyCapture(m.key);
-                break;
-            case EngineMsg::CaptureCanceled:
-                if (m.token == cap_.token) cap_.kind = Capture::None;
-                break;
-            case EngineMsg::RecordStopped:
-                if (ed_.recording) FinishRecord();
-                break;
+    for (auto &m : engine_.Drain())
+    {
+        switch (m.type)
+        {
+        case EngineMsg::Fired:
+            running_.insert(m.macroId);
+            flash_[m.macroId] = now;
+            if (Macro *x = FindMacro(m.macroId))
+            {
+                lastFired_ = x->name;
+                stats_.Add(x->name);
+                recent_.push_front({x->name, KeyLabel(x->trigger), now});
+                if (recent_.size() > 40)
+                    recent_.pop_back();
+            }
+            lastFiredAt_ = now;
+            break;
+        case EngineMsg::Stopped:
+            running_.erase(m.macroId);
+            break;
+        case EngineMsg::Toggled:
+            cfg_.enabled = engine_.Enabled();
+            SaveCfg();
+            if (!cfg_.enabled)
+                running_.clear();
+            Osd::Flash(cfg_.enabled);
+            Menu::Update(MenuColumns(cfg_), cfg_.enabled);
+            break;
+        case EngineMsg::Menu:
+            if (Menu::IsOpen())
+                Menu::Hide();
+            else
+                Menu::Show(MenuColumns(cfg_), cfg_.enabled);
+            break;
+        case EngineMsg::Captured:
+            if (cap_.kind != Capture::None && m.token == cap_.token)
+                ApplyCapture(m.key);
+            break;
+        case EngineMsg::CaptureCanceled:
+            if (m.token == cap_.token)
+                cap_.kind = Capture::None;
+            break;
+        case EngineMsg::RecordStopped:
+            if (ed_.recording)
+                FinishRecord();
+            break;
         }
     }
-    if (!preview_ && stats_.dirty && now - statsSavedAt_ > 20) {
+    if (!preview_ && stats_.dirty && now - statsSavedAt_ > 20)
+    {
         stats_.Save();
         statsSavedAt_ = now;
     }
 }
 
-void App::OnTester() {
-    for (auto& e : Tester::Drain()) {
-        if (e.fire || runs_.empty()) {
+void App::OnTester()
+{
+    for (auto &e : Tester::Drain())
+    {
+        if (e.fire || runs_.empty())
+        {
             TesterRun r;
             r.name = e.fire ? e.macro : L"Input";
             r.qpc0 = e.qpc;
             r.at = NowSeconds();
             r.id = HashId(L"run", (uint64_t)++runSeq_);
             runs_.push_front(std::move(r));
-            if (runs_.size() > 30) runs_.pop_back();
-            if (e.fire) continue;
+            if (runs_.size() > 30)
+                runs_.pop_back();
+            if (e.fire)
+                continue;
         }
-        if (runs_.front().ev.size() < 500) runs_.front().ev.push_back(e);
+        if (runs_.front().ev.size() < 500)
+            runs_.front().ev.push_back(e);
     }
 }
 
-void App::OnTasks() {
+void App::OnTasks()
+{
     std::vector<std::function<void()>> t;
     {
         std::lock_guard lk(taskMu_);
         t.swap(tasks_);
     }
-    for (auto& f : t)
-        if (f) f();
+    for (auto &f : t)
+        if (f)
+            f();
 }
 
-void App::OnActivate(bool active) {
+void App::OnActivate(bool active)
+{
     active_ = active;
-    if (!active) CancelCapture();
+    if (!active)
+        CancelCapture();
 }
 
-void App::RunAsync(std::function<std::function<void()>()> work) {
-    if (preview_) {
+void App::RunAsync(std::function<std::function<void()>()> work)
+{
+    if (preview_)
+    {
         auto done = work();
-        if (done) done();
+        if (done)
+            done();
         return;
     }
     HWND h = hwnd_;
     std::thread([this, work = std::move(work), h] {
         std::function<void()> done;
-        try {
+        try
+        {
             done = work();
-        } catch (...) {
+        }
+        catch (...)
+        {
         }
         {
             std::lock_guard lk(taskMu_);
@@ -317,18 +406,26 @@ void App::RunAsync(std::function<std::function<void()>()> work) {
     }).detach();
 }
 
-int App::HitTest(float x, float y) {
-    if (y < kChrome && x >= W_ - 90) return HTCLIENT;  // window dots
-    if (y < kChrome) return HTCAPTION;
-    for (auto& r : holes_)
-        if (r.Has(x, y)) return HTCLIENT;
-    if (!modals_.empty() || menu_.open) return HTCLIENT;
-    if (y < kChrome + kTopH && x >= sideW_) return HTCAPTION;
-    if (x < sideW_ && y < kChrome + 66) return HTCAPTION;
+int App::HitTest(float x, float y)
+{
+    if (y < kChrome && x >= W_ - 90)
+        return HTCLIENT; // window dots
+    if (y < kChrome)
+        return HTCAPTION;
+    for (auto &r : holes_)
+        if (r.Has(x, y))
+            return HTCLIENT;
+    if (!modals_.empty() || menu_.open)
+        return HTCLIENT;
+    if (y < kChrome + kTopH && x >= sideW_)
+        return HTCAPTION;
+    if (x < sideW_ && y < kChrome + 66)
+        return HTCAPTION;
     return HTCLIENT;
 }
 
-void App::ExportBackup() {
+void App::ExportBackup()
+{
     wchar_t file[MAX_PATH] = L"MacroTool-backup.json";
     OPENFILENAMEW ofn{sizeof ofn};
     ofn.hwndOwner = hwnd_;
@@ -337,24 +434,31 @@ void App::ExportBackup() {
     ofn.nMaxFile = MAX_PATH;
     ofn.lpstrDefExt = L"json";
     ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
-    if (!hwnd_ || !GetSaveFileNameW(&ofn)) return;
-    if (cfg_.SaveTo(file)) ShowToast(L"Backup saved. Load it later from Profiles.", 1);
-    else Message(L"Couldn't export", L"Windows wouldn't let the app write that file.", true);
+    if (!hwnd_ || !GetSaveFileNameW(&ofn))
+        return;
+    if (cfg_.SaveTo(file))
+        ShowToast(L"Backup saved. Load it later from Profiles.", 1);
+    else
+        Message(L"Couldn't export", L"Windows wouldn't let the app write that file.", true);
 }
 
 // ---------------------------------------------------------------- dialogs, menus, toasts
 
-void App::ShowToast(const std::wstring& text, int kind) {
+void App::ShowToast(const std::wstring &text, int kind)
+{
     toasts_.push_back({text, kind, ui.time > 0 ? ui.time : NowSeconds(), HashId(L"toast", (uint64_t)++toastSeq_)});
-    if (toasts_.size() > 3) toasts_.erase(toasts_.begin());
+    if (toasts_.size() > 3)
+        toasts_.erase(toasts_.begin());
 }
 
-void App::OpenModal(ModalKind k) {
+void App::OpenModal(ModalKind k)
+{
     CancelCapture();
     menu_.open = false;
     ui.focus = 0;
-    for (auto& m : modals_)
-        if (m.kind == k) {
+    for (auto &m : modals_)
+        if (m.kind == k)
+        {
             m.closing = false;
             return;
         }
@@ -363,39 +467,48 @@ void App::OpenModal(ModalKind k) {
     modals_.push_back(e);
 }
 
-void App::CloseModal(ModalKind k) {
-    for (auto& m : modals_)
-        if (m.kind == k) m.closing = true;
+void App::CloseModal(ModalKind k)
+{
+    for (auto &m : modals_)
+        if (m.kind == k)
+            m.closing = true;
     ui.focus = 0;
-    if (k == ModalKind::Editor && cap_.kind == Capture::EditorKey) CancelCapture();
+    if (k == ModalKind::Editor && cap_.kind == Capture::EditorKey)
+        CancelCapture();
 }
 
-bool App::ModalOpen(ModalKind k) const {
-    for (auto& m : modals_)
-        if (m.kind == k && !m.closing) return true;
+bool App::ModalOpen(ModalKind k) const
+{
+    for (auto &m : modals_)
+        if (m.kind == k && !m.closing)
+            return true;
     return false;
 }
 
-void App::Prompt(const std::wstring& title, const std::wstring& label, const std::wstring& initial,
-                 std::function<bool(const std::wstring&)> onOk, const std::wstring& ok, bool mono,
-                 const std::wstring& placeholder) {
+void App::Prompt(const std::wstring &title, const std::wstring &label, const std::wstring &initial,
+                 std::function<bool(const std::wstring &)> onOk, const std::wstring &ok, bool mono,
+                 const std::wstring &placeholder)
+{
     pr_ = {title, label, initial, placeholder, ok, mono, std::move(onOk), L""};
     OpenModal(ModalKind::Prompt);
     ui.focus = HashId(L"prompt-input");
 }
 
-void App::Confirm(const std::wstring& title, const std::wstring& text, const std::wstring& ok, bool danger,
-                  std::function<void()> onOk) {
+void App::Confirm(const std::wstring &title, const std::wstring &text, const std::wstring &ok, bool danger,
+                  std::function<void()> onOk)
+{
     cf_ = {title, text, ok, danger, std::move(onOk)};
     OpenModal(ModalKind::Confirm);
 }
 
-void App::Message(const std::wstring& title, const std::wstring& text, bool error) {
+void App::Message(const std::wstring &title, const std::wstring &text, bool error)
+{
     msg_ = {title, text, error};
     OpenModal(ModalKind::Message);
 }
 
-void App::OpenMenu(const Rect& anchor, std::vector<MenuItem> items, float width) {
+void App::OpenMenu(const Rect &anchor, std::vector<MenuItem> items, float width)
+{
     CancelCapture();
     menu_.open = true;
     menu_.anchor = anchor;
@@ -405,77 +518,112 @@ void App::OpenMenu(const Rect& anchor, std::vector<MenuItem> items, float width)
     ui.SetAnim(menu_.anim, 0.f);
 }
 
-void App::HandleKeys() {
-    auto topModal = [&]() -> ModalEntry* {
-        ModalEntry* top = nullptr;
-        for (auto& m : modals_)
-            if (!m.closing) top = &m;
+void App::HandleKeys()
+{
+    auto topModal = [&]() -> ModalEntry * {
+        ModalEntry *top = nullptr;
+        for (auto &m : modals_)
+            if (!m.closing)
+                top = &m;
         return top;
     };
     ID searchId = HashId(L"search");
-    for (auto& k : ui.in.keys) {
-        ModalEntry* top = topModal();
-        if (k.vk == VK_ESCAPE) {
-            if (menu_.open) {
+    for (auto &k : ui.in.keys)
+    {
+        ModalEntry *top = topModal();
+        if (k.vk == VK_ESCAPE)
+        {
+            if (menu_.open)
+            {
                 menu_.open = false;
-            } else if (ui.focus == searchId) {
+            }
+            else if (ui.focus == searchId)
+            {
                 search_.clear();
                 ui.focus = 0;
-            } else if (top) {
-                if (top->kind == ModalKind::Editor) {
-                    if (ed_.recording) ToggleRecord();
-                    else CloseEditor();
-                } else {
+            }
+            else if (top)
+            {
+                if (top->kind == ModalKind::Editor)
+                {
+                    if (ed_.recording)
+                        ToggleRecord();
+                    else
+                        CloseEditor();
+                }
+                else
+                {
                     CloseModal(top->kind);
                 }
             }
-        } else if (k.vk == VK_OEM_2 && !k.shift && !k.ctrl && ui.focus == 0 && !top && !menu_.open) {
+        }
+        else if (k.vk == VK_OEM_2 && !k.shift && !k.ctrl && ui.focus == 0 && !top && !menu_.open)
+        {
             // "/" = search
             ui.focus = searchId;
             searchSel_ = 0;
-            auto& ch = ui.in.chars;
+            auto &ch = ui.in.chars;
             ch.erase(std::remove(ch.begin(), ch.end(), L'/'), ch.end());
-        } else if (k.vk == VK_RETURN && top && !menu_.open) {
-            if (top->kind == ModalKind::Confirm) {
+        }
+        else if (k.vk == VK_RETURN && top && !menu_.open)
+        {
+            if (top->kind == ModalKind::Confirm)
+            {
                 auto cb = cf_.onOk;
                 CloseModal(ModalKind::Confirm);
-                if (cb) cb();
-            } else if (top->kind == ModalKind::Message) {
+                if (cb)
+                    cb();
+            }
+            else if (top->kind == ModalKind::Message)
+            {
                 CloseModal(ModalKind::Message);
             }
-        } else if (k.ctrl && k.vk == 'S' && top && top->kind == ModalKind::Editor) {
+        }
+        else if (k.ctrl && k.vk == 'S' && top && top->kind == ModalKind::Editor)
+        {
             SaveEditor();
-        } else if (k.ctrl && k.vk == 'N' && !top && !menu_.open) {
-            OpenEditor(0);  // new macro
-        } else if (k.ctrl && k.vk == 'F' && !top && !menu_.open) {
-            ui.focus = searchId;  // jump to search
+        }
+        else if (k.ctrl && k.vk == 'N' && !top && !menu_.open)
+        {
+            OpenEditor(0); // new macro
+        }
+        else if (k.ctrl && k.vk == 'F' && !top && !menu_.open)
+        {
+            ui.focus = searchId; // jump to search
             searchSel_ = 0;
         }
     }
 }
 
-void App::Caption(const std::wstring& text, float x, float y, Color c) {
+void App::Caption(const std::wstring &text, float x, float y, Color c)
+{
     g.Text(text, {x, y, 400, 14}, c, F::Caption, kLeft, false);
 }
 
-float App::RowAppear(int i) {
-    if (ui.reduceMotion) return 1.f;
+float App::RowAppear(int i)
+{
+    if (ui.reduceMotion)
+        return 1.f;
     // row stagger, ~0.34s each
     float t = (float)((ui.time - pageStart_ - i * 0.05) / 0.34);
-    if (t < 1) ui.Keep();
+    if (t < 1)
+        ui.Keep();
     return EaseOutBack(t) * 0.06f + EaseOut(t) * 0.94f;
 }
 
-void App::Card(const Rect& r) {
+void App::Card(const Rect &r)
+{
     g.Shadow(r, 14, 22, 0.22f, 7);
     g.Round(r, 14, T.panel);
     g.RoundStroke(r, 14, T.border);
-    g.Fill({r.x + 14, r.y + 1, r.w - 28, 1}, WithA(T.text, 0.045f));  // highlight line
+    g.Fill({r.x + 14, r.y + 1, r.w - 28, 1}, WithA(T.text, 0.045f)); // highlight line
 }
 
-void App::CardTitle(const Rect& r, const std::wstring& title, const std::wstring& legend, Color legendC) {
+void App::CardTitle(const Rect &r, const std::wstring &title, const std::wstring &legend, Color legendC)
+{
     g.Text(title, {r.x + 26, r.y + 20, r.w - (legend.empty() ? 52 : 260), 28}, T.text, F::H2);
-    if (!legend.empty()) {
+    if (!legend.empty())
+    {
         float lw = g.TextW(legend, F::Caption);
         g.Circle(r.R() - 26 - lw - 12, r.y + 34, 4.5f, legendC);
         g.Text(legend, {r.R() - 26 - lw - 2, r.y + 26, lw + 4, 16}, T.dim, F::Caption, kLeft, true);
@@ -483,7 +631,8 @@ void App::CardTitle(const Rect& r, const std::wstring& title, const std::wstring
     g.Fill({r.x, r.y + 66, r.w, 1}, T.border);
 }
 
-float App::EmptyState(const Rect& area, const wchar_t* glyph, const std::wstring& title, const std::wstring& text) {
+float App::EmptyState(const Rect &area, const wchar_t *glyph, const std::wstring &title, const std::wstring &text)
+{
     float cy = area.y + std::min(area.h * 0.30f, 150.f);
     float t = RowAppear(0);
     ui.PushAlpha(t);
@@ -502,33 +651,41 @@ float App::EmptyState(const Rect& area, const wchar_t* glyph, const std::wstring
 
 // ---------------------------------------------------------------- frame
 
-void App::Frame(float W, float H) {
+void App::Frame(float W, float H)
+{
     W_ = W;
     H_ = H;
     holes_.clear();
     // our toggle wins over windows reduce motion
-    if (!preview_) ui.reduceMotion = !cfg_.animations;
+    if (!preview_)
+        ui.reduceMotion = !cfg_.animations;
     float light = ui.Anim(0x7EE3E, cfg_.theme == L"Light" ? 1.f : 0.f, 7.f);
     T = LerpTheme(kDark, kLight, light);
     g.shadowScale = T.shadow;
-    if (cap_.kind != Capture::None && ui.in.pressed && ui.hot != cap_.chip) CancelCapture();
+    if (cap_.kind != Capture::None && ui.in.pressed && ui.hot != cap_.chip)
+        CancelCapture();
     HandleKeys();
 
     int top = -1;
     for (int i = 0; i < (int)modals_.size(); i++)
-        if (!modals_[i].closing) top = i;
-    for (auto& m : modals_) m.t = ui.Anim(m.anim, m.closing ? 0.f : 1.f, m.closing ? 20.f : 13.f);
+        if (!modals_[i].closing)
+            top = i;
+    for (auto &m : modals_)
+        m.t = ui.Anim(m.anim, m.closing ? 0.f : 1.f, m.closing ? 20.f : 13.f);
     float base = modals_.empty() ? 0.f : modals_[0].t;
 
     // first-run walkthrough, once a key is in
     bool tut = licensed_ && !cfg_.tutorialDone && modals_.empty();
-    if (tut && tutorialStep_ < 0) tutorialStep_ = 0;
-    if (!tut) tutorialStep_ = -1;
+    if (tut && tutorialStep_ < 0)
+        tutorialStep_ = 0;
+    if (!tut)
+        tutorialStep_ = -1;
     bool tutActive = tutorialStep_ >= 0;
 
     g.Clear(T.bg);
     bool layered = base > 0.003f && g.BeginLayer();
-    if (layered) g.Clear(T.bg);
+    if (layered)
+        g.Clear(T.bg);
     ui.inputOn = top < 0 && !menu_.open && !tutActive;
     // title strip
     g.Fill({0, 0, W, kChrome}, T.side);
@@ -539,22 +696,26 @@ void App::Frame(float W, float H) {
     DrawBase();
     H_ = H;
     ui.PopXf();
-    if (layered) {
-        if (ID2D1Bitmap* b = g.EndLayer()) {
+    if (layered)
+    {
+        if (ID2D1Bitmap *b = g.EndLayer())
+        {
             g.DrawBlurred(b, 10.f * EaseOut(base));
             b->Release();
         }
     }
-    for (int i = 0; i < (int)modals_.size(); i++) {
-        ModalEntry& m = modals_[i];
+    for (int i = 0; i < (int)modals_.size(); i++)
+    {
+        ModalEntry &m = modals_[i];
         g.Fill({0, 0, W, H}, WithA(T.overlay, m.t));
         bool input = i == top && !menu_.open && !m.closing;
         ui.inputOn = input;
         DrawModal(m, input);
     }
-    modals_.erase(std::remove_if(modals_.begin(), modals_.end(), [](auto& m) { return m.closing && m.t <= 0.003f; }),
+    modals_.erase(std::remove_if(modals_.begin(), modals_.end(), [](auto &m) { return m.closing && m.t <= 0.003f; }),
                   modals_.end());
-    if (tutActive) {
+    if (tutActive)
+    {
         ui.inputOn = true;
         DrawTutorial(W, H);
     }
@@ -569,11 +730,14 @@ void App::Frame(float W, float H) {
 }
 
 // startup splash
-void App::DrawSplash(float W, float H) {
-    if (splashAt_ < 0) return;
+void App::DrawSplash(float W, float H)
+{
+    if (splashAt_ < 0)
+        return;
     float s = (float)(ui.time - splashAt_);
     const float total = 2.4f, outAt = 1.85f;
-    if (s >= total) {
+    if (s >= total)
+    {
         splashAt_ = -1;
         return;
     }
@@ -596,7 +760,8 @@ void App::DrawSplash(float W, float H) {
     ui.PopAlpha();
 }
 
-void App::DrawBase() {
+void App::DrawBase()
+{
     float open = ui.Anim(0x51DE0, cfg_.sidebarCollapsed ? 0.f : 1.f, 11.f);
     sideW_ = kSideClosed + (kSideOpen - kSideClosed) * open;
     float appear = ui.Anim(0xA99EA2, 1.f, 4.5f, 0.f);
@@ -608,12 +773,18 @@ void App::DrawBase() {
     Rect header{sideW_ + 36, kTopH + 28, W_ - sideW_ - 72, 56};
     DrawHeader(header);
     Rect area{header.x, header.B() + 26, header.w, H_ - header.B() - 26};
-    if (page_ == L"Dashboard") PageDashboard(area);
-    else if (IsMacroPage()) PageCategory(area);
-    else if (page_ == L"Tweaks") PageTweaks(area);
-    else if (page_ == L"Tester") PageTester(area);
-    else if (page_ == L"Profiles") PageProfiles(area);
-    else PageSettings(area);
+    if (page_ == L"Dashboard")
+        PageDashboard(area);
+    else if (IsMacroPage())
+        PageCategory(area);
+    else if (page_ == L"Tweaks")
+        PageTweaks(area);
+    else if (page_ == L"Tester")
+        PageTester(area);
+    else if (page_ == L"Profiles")
+        PageProfiles(area);
+    else
+        PageSettings(area);
     ui.PopXf();
     ui.PopAlpha();
 
@@ -624,7 +795,8 @@ void App::DrawBase() {
 
 // ---------------------------------------------------------------- sidebar
 
-void App::DrawSidebar(float sideW) {
+void App::DrawSidebar(float sideW)
+{
     float open = Clamp01((sideW - kSideClosed) / (kSideOpen - kSideClosed));
     g.Fill({0, 0, sideW, H_}, T.side);
     g.Fill({sideW - 1, 0, 1, H_}, T.border);
@@ -641,29 +813,34 @@ void App::DrawSidebar(float sideW) {
     ui.BeginScroll(sid, navView);
     float y = navView.y + 8;
 
-    auto section = [&](const wchar_t* title) {
+    auto section = [&](const wchar_t *title) {
         y += 6;
-        if (open > 0.02f) {
+        if (open > 0.02f)
+        {
             ui.PushAlpha(open);
             g.Text(title, {24, y, sideW - 40, 18}, T.faint, F::SmallSemi);
             ui.PopAlpha();
         }
-        if (open < 0.98f) g.Fill({26, y + 9, 24, 1}, WithA(T.border2, 1 - open));
+        if (open < 0.98f)
+            g.Fill({26, y + 9, 24, 1}, WithA(T.border2, 1 - open));
         y += 26;
     };
-    auto badgeFor = [&](const std::wstring& cat) {
+    auto badgeFor = [&](const std::wstring &cat) {
         int n = 0;
-        for (auto& m : cfg_.macros)
-            if (m.enabled && m.category == cat) n++;
+        for (auto &m : cfg_.macros)
+            if (m.enabled && m.category == cat)
+                n++;
         return n;
     };
-    auto badge = [&](const Rect& r, const std::wstring& key, int n, float sel) {
+    auto badge = [&](const Rect &r, const std::wstring &key, int n, float sel) {
         ID pop = HashId(L"badge-" + key);
         auto it = badges_.find(key);
-        if (it != badges_.end() && it->second != n) ui.SetAnim(pop, 1.f);
+        if (it != badges_.end() && it->second != n)
+            ui.SetAnim(pop, 1.f);
         badges_[key] = n;
         float p = ui.Anim(pop, 0.f, 7.f);
-        if (n <= 0 || open < 0.05f) return;
+        if (n <= 0 || open < 0.05f)
+            return;
         std::wstring s = std::to_wstring(n);
         Rect b{r.R() - 46, r.y, 34, r.h};
         ui.PushAlpha(open);
@@ -671,7 +848,7 @@ void App::DrawSidebar(float sideW) {
         ui.PopAlpha();
     };
     // sidebar item, active = highlighted
-    auto item = [&](const std::wstring& label, const wchar_t* glyph, bool active, ID id, float h = 42.f) {
+    auto item = [&](const std::wstring &label, const wchar_t *glyph, bool active, ID id, float h = 42.f) {
         Rect r{12, y, sideW - 24, h};
         Interact it = ui.Press(id, r);
         float at = ui.Anim(HashId(id, 3), active ? 1.f : 0.f, 14.f);
@@ -682,13 +859,15 @@ void App::DrawSidebar(float sideW) {
         float ix = r.x + 14 + (r.w - 22 - 28) * 0.5f * (1 - open);
         Color ic = Mix(Mix(T.dim, T.text, it.hoverT), T.text, at);
         g.Text(glyph, {ix, r.y, 22, r.h}, ic, F::Icon, kCenter);
-        if (open > 0.02f) {
+        if (open > 0.02f)
+        {
             ui.PushAlpha(open);
             g.Text(label, {r.x + 46 + 3 * it.hoverT * (1 - at), r.y, r.w - 100, r.h},
                    Mix(Mix(T.dim, T.text, 0.55f + 0.45f * it.hoverT), T.text, at), F::Body);
             ui.PopAlpha();
         }
-        if (open < 0.5f) ui.Tip(id, label, r);
+        if (open < 0.5f)
+            ui.Tip(id, label, r);
         ui.PopXf();
         y += h + 2;
         return std::pair<Interact, Rect>{it, r};
@@ -697,17 +876,20 @@ void App::DrawSidebar(float sideW) {
     section(L"Main Menu");
     {
         auto [it, r] = item(L"Dashboard", L"", page_ == L"Dashboard", HashId(L"nav-Dashboard"));
-        if (it.clicked) Navigate(L"Dashboard");
+        if (it.clicked)
+            Navigate(L"Dashboard");
     }
     bool inGroup = false;
     for (int i = 0; i < 5; i++)
-        if (page_ == kCategories[i].name) inGroup = true;
+        if (page_ == kCategories[i].name)
+            inGroup = true;
     {
         auto [it, r] = item(L"Macros", L"", inGroup, HashId(L"nav-Macros"));
         // group open/close anim
         float gt = ui.Spring(HashId(L"grp-open"), macrosOpen_ ? 1.f : 0.f, 300.f, 30.f);
         float gtc = Clamp01(gt);
-        if (open > 0.02f) {
+        if (open > 0.02f)
+        {
             ui.PushAlpha(open);
             Rect ch{r.R() - 30, r.y, 20, r.h};
             ui.PushRotate(-90.f * (1 - gtc), ch.Cx(), ch.Cy());
@@ -715,18 +897,23 @@ void App::DrawSidebar(float sideW) {
             ui.PopXf();
             ui.PopAlpha();
         }
-        if (it.clicked) {
-            if (open < 0.5f) Navigate(L"Editing");
-            else macrosOpen_ = !macrosOpen_;
+        if (it.clicked)
+        {
+            if (open < 0.5f)
+                Navigate(L"Editing");
+            else
+                macrosOpen_ = !macrosOpen_;
         }
         float childT = gtc * open;
-        if (childT > 0.004f) {
+        if (childT > 0.004f)
+        {
             float full = 5 * 38.f;
             float roll = EaseOut(childT);
             float h = full * roll;
             ui.PushClip({0, y, sideW, h + 2});
             float cy = y;
-            for (int i = 0; i < 5; i++) {
+            for (int i = 0; i < 5; i++)
+            {
                 std::wstring name = kCategories[i].name;
                 bool sel = page_ == name;
                 // rows come in after the roll reaches them
@@ -745,9 +932,10 @@ void App::DrawSidebar(float sideW) {
                 g.Text(name, {cr.x + 22 + 3 * ci.hoverT, cr.y, cr.w - 70, cr.h},
                        Mix(Mix(T.dim, T.text, ci.hoverT), T.text, st), F::Body);
                 badge(cr, name, badgeFor(name), st);
-                if (ci.clicked) Navigate(name);
-                ui.PopXf();  // scale
-                ui.PopXf();  // offset
+                if (ci.clicked)
+                    Navigate(name);
+                ui.PopXf(); // scale
+                ui.PopXf(); // offset
                 ui.PopAlpha();
                 cy += 38;
             }
@@ -756,22 +944,26 @@ void App::DrawSidebar(float sideW) {
         }
     }
     section(L"Tools");
-    for (const wchar_t* p : {L"Tweaks", L"Tester", L"Profiles", L"Settings"}) {
+    for (const wchar_t *p : {L"Tweaks", L"Tester", L"Profiles", L"Settings"})
+    {
         auto [it, r] = item(p, PageGlyph(p), page_ == p, HashId(std::wstring(L"nav-") + p));
-        if (it.clicked) Navigate(p);
+        if (it.clicked)
+            Navigate(p);
     }
     y += 10;
     ui.EndScroll(sid, y - navView.y);
     DrawSideFooter(sideW, open);
 }
 
-void App::DrawSideFooter(float sideW, float open) {
+void App::DrawSideFooter(float sideW, float open)
+{
     float footerH = open > 0.5f ? 150.f : 128.f;
     float y = H_ - footerH;
     g.Fill({0, y, sideW, 1}, T.border);
     y += 14;
     bool light = cfg_.theme == L"Light";
-    if (open > 0.5f) {
+    if (open > 0.5f)
+    {
         Rect seg{12, y, sideW - 24, 40};
         g.Round(seg, 11, T.field);
         g.RoundStroke(seg, 11, T.border);
@@ -780,9 +972,10 @@ void App::DrawSideFooter(float sideW, float open) {
         Rect thumb{tx, seg.y + 4, hw, seg.h - 8};
         g.Round(thumb, 8, T.thumb);
         g.RoundStroke(thumb, 8, T.border2);
-        const wchar_t* glyphs[2] = {L"", L""};
-        const wchar_t* names[2] = {L"Light", L"Dark"};
-        for (int i = 0; i < 2; i++) {
+        const wchar_t *glyphs[2] = {L"", L""};
+        const wchar_t *names[2] = {L"Light", L"Dark"};
+        for (int i = 0; i < 2; i++)
+        {
             Rect s{seg.x + 4 + hw * i, seg.y + 4, hw, seg.h - 8};
             Interact it = ui.Press(HashId(L"theme-seg", (uint64_t)i), s);
             bool sel = (i == 0) == light;
@@ -790,9 +983,12 @@ void App::DrawSideFooter(float sideW, float open) {
             float w = g.TextW(names[i], F::Semi) + 22;
             g.Text(glyphs[i], {s.Cx() - w / 2, s.y, 16, s.h}, c, F::IconSm);
             g.Text(names[i], {s.Cx() - w / 2 + 22, s.y, w, s.h}, c, F::Semi);
-            if (it.clicked && !sel) SetTheme(i == 0);
+            if (it.clicked && !sel)
+                SetTheme(i == 0);
         }
-    } else {
+    }
+    else
+    {
         Rect b{(sideW - 40) / 2, y, 40, 40};
         if (ui.IconButton(HashId(L"theme-mini"), b, light ? L"" : L"", light ? L"Dark theme" : L"Light theme"))
             SetTheme(!light);
@@ -802,7 +998,8 @@ void App::DrawSideFooter(float sideW, float open) {
     bool on = cfg_.enabled;
     float onT = ui.Anim(0x57A7, on ? 1.f : 0.f, 8.f);
     Rect card{12, y, sideW - 24, 66};
-    if (open > 0.5f) {
+    if (open > 0.5f)
+    {
         g.Round(card, 12, T.panel2);
         g.RoundStroke(card, 12, T.border);
     }
@@ -811,28 +1008,35 @@ void App::DrawSideFooter(float sideW, float open) {
     Interact ai = ui.Press(HashId(L"side-avatar"), av);
     g.Round(av, 21, Mix(T.panel3, T.border2, ai.hoverT));
     g.Text(L"", av, T.text, F::Icon, kCenter);
-    if (on && active_ && !ui.reduceMotion) {
+    if (on && active_ && !ui.reduceMotion)
+    {
         float ph = (float)std::fmod(ui.time, 1.8) / 1.8f;
         g.Circle(av.R() - 2, av.B() - 2, 5.f + 7.f * ph, WithA(T.green, 0.45f * (1 - ph)));
         ui.Keep();
     }
     g.Circle(av.R() - 2, av.B() - 2, 6, T.panel2);
     g.Circle(av.R() - 2, av.B() - 2, 4.5f, Mix(T.faint, T.green, onT));
-    ui.Tip(HashId(L"side-avatar"), on ? L"Macros are on. Click to pause them." : L"Macros are paused. Click to turn them on.", av);
-    if (ai.clicked) SetMaster(!on);
-    if (open > 0.5f) {
+    ui.Tip(HashId(L"side-avatar"),
+           on ? L"Macros are on. Click to pause them." : L"Macros are paused. Click to turn them on.", av);
+    if (ai.clicked)
+        SetMaster(!on);
+    if (open > 0.5f)
+    {
         ui.PushAlpha(Clamp01(open * 2 - 1));
         g.Text(on ? L"Macros on" : L"Macros paused", {av.R() + 12, card.y + 14, card.w - 120, 20}, T.text, F::Semi);
-        g.Text(Pretty(cfg_.toggleKey) + L" toggles in game", {av.R() + 12, card.y + 34, card.w - 120, 18}, T.dim, F::Small);
+        g.Text(Pretty(cfg_.toggleKey) + L" toggles in game", {av.R() + 12, card.y + 34, card.w - 120, 18}, T.dim,
+               F::Small);
         bool v = on;
-        if (ui.Switch(0x5717C4, card.R() - 12 - 40, card.Cy() - 11, v)) SetMaster(v);
+        if (ui.Switch(0x5717C4, card.R() - 12 - 40, card.Cy() - 11, v))
+            SetMaster(v);
         ui.PopAlpha();
     }
 }
 
 // ---------------------------------------------------------------- top bar & search
 
-void App::DrawTopBar(const Rect& bar) {
+void App::DrawTopBar(const Rect &bar)
+{
     g.Fill(bar, WithA(T.bg, 0.92f));
     g.Fill({bar.x, bar.B() - 1, bar.w, 1}, T.border);
 
@@ -843,7 +1047,8 @@ void App::DrawTopBar(const Rect& bar) {
     g.RoundStroke(col, 11, T.border);
     g.Text(cfg_.sidebarCollapsed ? L"" : L"", col, Mix(T.dim, T.text, ct.hoverT), F::IconSm, kCenter);
     ui.Tip(HashId(L"collapse"), cfg_.sidebarCollapsed ? L"Show sidebar" : L"Collapse sidebar", col);
-    if (ct.clicked) {
+    if (ct.clicked)
+    {
         cfg_.sidebarCollapsed = !cfg_.sidebarCollapsed;
         SaveCfg();
     }
@@ -859,25 +1064,33 @@ void App::DrawTopBar(const Rect& bar) {
     so.maxLen = 60;
     auto res = ui.TextBox(sid, sr, search_, so);
     g.Text(L"", {sr.x + 14, sr.y, 18, sr.h}, T.dim, F::IconSm);
-    if (search_.empty() && !res.focused) {
+    if (search_.empty() && !res.focused)
+    {
         Rect kbd{sr.R() - 34, sr.y + 9, 22, 22};
         g.Round(kbd, 6, T.panel3);
         g.RoundStroke(kbd, 6, T.border2);
         g.Text(L"/", kbd, T.dim, F::SmallSemi, kCenter);
     }
-    if (res.changed) searchSel_ = 0;
-    if (res.focused) {
+    if (res.changed)
+        searchSel_ = 0;
+    if (res.focused)
+    {
         auto hits = SearchResults();
-        for (auto& k : ui.in.keys) {
-            if (k.vk == VK_DOWN) searchSel_ = std::min(searchSel_ + 1, (int)hits.size() - 1);
-            if (k.vk == VK_UP) searchSel_ = std::max(searchSel_ - 1, 0);
+        for (auto &k : ui.in.keys)
+        {
+            if (k.vk == VK_DOWN)
+                searchSel_ = std::min(searchSel_ + 1, (int)hits.size() - 1);
+            if (k.vk == VK_UP)
+                searchSel_ = std::max(searchSel_ - 1, 0);
         }
-        if (res.submitted && !hits.empty()) {
+        if (res.submitted && !hits.empty())
+        {
             auto h = hits[std::clamp(searchSel_, 0, (int)hits.size() - 1)];
             search_.clear();
             ui.focus = 0;
             Navigate(h.page);
-            if (h.macroId) OpenEditor(h.macroId);
+            if (h.macroId)
+                OpenEditor(h.macroId);
         }
     }
 
@@ -898,30 +1111,37 @@ void App::DrawTopBar(const Rect& bar) {
     g.Circle(av.R() - 1, av.B() - 1, 6, T.bg);
     g.Circle(av.R() - 1, av.B() - 1, 4.5f, on ? T.green : T.faint);
     ui.Tip(HashId(L"top-status"), on ? L"Click to pause all macros" : L"Click to turn macros on", status);
-    if (st.clicked) SetMaster(!on);
+    if (st.clicked)
+        SetMaster(!on);
 
     x = status.x - 18;
     g.Fill({x, 22, 1, 24}, T.border2);
     x -= 18 + 38;
     Rect bell{x, 15, 38, 38};
     holes_.push_back(ui.ToScreen(bell));
-    if (ui.IconButton(HashId(L"bell"), bell, L"", L"Notifications")) {
+    if (ui.IconButton(HashId(L"bell"), bell, L"", L"Notifications"))
+    {
         std::vector<MenuItem> items;
-        for (auto& m : cfg_.macros) {
+        for (auto &m : cfg_.macros)
+        {
             auto it = issues_.find(m.id);
-            if (it == issues_.end()) continue;
+            if (it == issues_.end())
+                continue;
             int id = m.id;
             std::wstring cat = m.category;
             items.push_back({m.name + L": " + it->second.text, L"", it->second.error, [this, id, cat] {
                                  Navigate(cat);
                                  OpenEditor(id);
                              }});
-            if (items.size() >= 8) break;
+            if (items.size() >= 8)
+                break;
         }
-        if (items.empty()) items.push_back({L"All macros look good", L"", false, nullptr});
+        if (items.empty())
+            items.push_back({L"All macros look good", L"", false, nullptr});
         OpenMenu(ui.ToScreen(bell), items, 360);
     }
-    if (!issues_.empty()) {
+    if (!issues_.empty())
+    {
         g.Circle(bell.R() - 9, bell.y + 9, 5, T.bg);
         g.Circle(bell.R() - 9, bell.y + 9, 3.5f, T.red);
     }
@@ -933,17 +1153,21 @@ void App::DrawTopBar(const Rect& bar) {
         SetTheme(!light);
 }
 
-std::vector<App::SearchHit> App::SearchResults() {
+std::vector<App::SearchHit> App::SearchResults()
+{
     std::vector<SearchHit> hits;
     std::wstring q = Lower(Trim(search_));
-    std::vector<std::wstring> pages = {L"Dashboard", L"Editing", L"Building", L"Movement", L"Utility", L"Custom",
-                                       L"Tweaks", L"Tester", L"Profiles", L"Settings"};
-    for (auto& p : pages)
+    std::vector<std::wstring> pages = {L"Dashboard", L"Editing", L"Building", L"Movement", L"Utility",
+                                       L"Custom",    L"Tweaks",  L"Tester",   L"Profiles", L"Settings"};
+    for (auto &p : pages)
         if (q.empty() || Lower(p).find(q) != std::wstring::npos)
             hits.push_back({p, L"Page", p, PageGlyph(p), 0});
-    if (!q.empty()) {
-        for (auto& m : cfg_.macros) {
-            if (hits.size() >= 9) break;
+    if (!q.empty())
+    {
+        for (auto &m : cfg_.macros)
+        {
+            if (hits.size() >= 9)
+                break;
             if (Lower(m.name).find(q) == std::wstring::npos && Lower(m.category).find(q) == std::wstring::npos &&
                 Lower(Pretty(m.trigger)) != q)
                 continue;
@@ -951,14 +1175,17 @@ std::vector<App::SearchHit> App::SearchResults() {
                             PageGlyph(m.category), m.id});
         }
     }
-    if (hits.size() > 9) hits.resize(9);
+    if (hits.size() > 9)
+        hits.resize(9);
     return hits;
 }
 
-void App::DrawSearchResults() {
+void App::DrawSearchResults()
+{
     ID sid = HashId(L"search");
     float t = ui.Anim(HashId(sid, 7), ui.focus == sid ? 1.f : 0.f, 20.f);
-    if (t < 0.01f) return;
+    if (t < 0.01f)
+        return;
     auto hits = SearchResults();
     float sw = std::max(380.f, std::clamp(W_ - 46 * 3 - 18 - 330 - (sideW_ + 76), 180.f, 380.f));
     Rect box{sideW_ + 76, kTopH - 6 + (1 - t) * 8, sw, 16 + std::max(1, (int)hits.size()) * 48.f};
@@ -967,14 +1194,17 @@ void App::DrawSearchResults() {
     g.Shadow(box, 14, 26, 0.6f, 8);
     g.Round(box, 14, T.panel);
     g.RoundStroke(box, 14, T.border2);
-    if (hits.empty()) g.Text(L"Nothing matches “" + search_ + L"”", box.Inset(18, 8), T.dim, F::Body);
+    if (hits.empty())
+        g.Text(L"Nothing matches “" + search_ + L"”", box.Inset(18, 8), T.dim, F::Body);
     float y = box.y + 8;
     searchSel_ = std::clamp(searchSel_, 0, std::max(0, (int)hits.size() - 1));
-    for (int i = 0; i < (int)hits.size(); i++) {
-        auto& h = hits[i];
+    for (int i = 0; i < (int)hits.size(); i++)
+    {
+        auto &h = hits[i];
         Rect r{box.x + 8, y, box.w - 16, 46};
         Interact it = ui.Press(HashId(sid, 100 + (uint64_t)i), r);
-        if (it.hover) searchSel_ = i;
+        if (it.hover)
+            searchSel_ = i;
         float s = ui.Anim(HashId(sid, 200 + (uint64_t)i), i == searchSel_ ? 1.f : 0.f, 24.f);
         g.Round(r, 10, WithA(T.accent, 0.12f * s));
         Rect tile{r.x + 8, r.y + 7, 32, 32};
@@ -982,8 +1212,10 @@ void App::DrawSearchResults() {
         g.Text(h.glyph, tile, Mix(T.dim, T.accentHi, s), F::IconSm, kCenter);
         g.Text(h.title, {tile.R() + 12, r.y + 5, r.w - 120, 20}, T.text, F::Semi);
         g.Text(h.sub, {tile.R() + 12, r.y + 24, r.w - 120, 18}, T.dim, F::Small);
-        if (s > 0.5f) g.Text(L"↵", {r.R() - 36, r.y, 24, r.h}, T.faint, F::Body, kCenter);
-        if (it.pressed) {
+        if (s > 0.5f)
+            g.Text(L"↵", {r.R() - 36, r.y, 24, r.h}, T.faint, F::Body, kCenter);
+        if (it.pressed)
+        {
             // act on press: the text box loses focus on this same click
             std::wstring page = h.page;
             int id = h.macroId;
@@ -991,7 +1223,8 @@ void App::DrawSearchResults() {
             ui.focus = 0;
             ui.PopAlpha();
             Navigate(page);
-            if (id) OpenEditor(id);
+            if (id)
+                OpenEditor(id);
             return;
         }
         y += 48;
@@ -1001,30 +1234,45 @@ void App::DrawSearchResults() {
 
 // ---------------------------------------------------------------- header & window buttons
 
-void App::DrawHeader(const Rect& r) {
+void App::DrawHeader(const Rect &r)
+{
     std::wstring title = page_, sub;
-    if (page_ == L"Dashboard") {
+    if (page_ == L"Dashboard")
+    {
         sub = L"See how your macros perform and how often they fire, live.";
-    } else if (IsMacroPage()) {
+    }
+    else if (IsMacroPage())
+    {
         int total = 0, on = 0;
-        for (auto& m : cfg_.macros)
-            if (m.category == page_) {
+        for (auto &m : cfg_.macros)
+            if (m.category == page_)
+            {
                 total++;
                 on += m.enabled;
             }
         sub = Fmt(L"%d of %d macros active", on, total);
-    } else if (page_ == L"Tweaks") {
+    }
+    else if (page_ == L"Tweaks")
+    {
         sub = L"Windows settings for FPS, input and ping";
-        if (Monitor::pingMs.load() >= 0) sub += Fmt(L"  ·  ping %d ms", Monitor::pingMs.load());
-    } else if (page_ == L"Tester") {
+        if (Monitor::pingMs.load() >= 0)
+            sub += Fmt(L"  ·  ping %d ms", Monitor::pingMs.load());
+    }
+    else if (page_ == L"Tester")
+    {
         sub = L"Press a macro's key to see every input it sends, with timing";
-    } else if (page_ == L"Profiles") {
+    }
+    else if (page_ == L"Profiles")
+    {
         sub = L"Save your macros and binds, switch setups in one click";
-    } else {
+    }
+    else
+    {
         sub = L"Timing, hotkeys and your in-game binds";
     }
     float t = ui.reduceMotion ? 1.f : EaseOut((float)(ui.time - pageStart_) / 0.4f);
-    if (t < 1) ui.Keep();
+    if (t < 1)
+        ui.Keep();
     ui.PushAlpha(t);
     ui.PushOffset(14 * (1 - t), 0);
     g.Text(title, {r.x, r.y - 2, r.w - 340, 36}, T.text, F::Hero);
@@ -1033,34 +1281,61 @@ void App::DrawHeader(const Rect& r) {
     ui.PopAlpha();
 
     float bx = r.R();
-    auto btn = [&](const std::wstring& label, const wchar_t* icon, Btn style, float w) {
+    auto btn = [&](const std::wstring &label, const wchar_t *icon, Btn style, float w) {
         bx -= w;
         Rect b{bx, r.y + 6, w, 42};
         bx -= 12;
         return std::pair<bool, Rect>{ui.Button(HashId(label, 0x4D5), b, label, style, icon), b};
     };
-    if (page_ == L"Dashboard") {
-        if (btn(L"Export", L"", Btn::Primary, 112).first) ExportBackup();
+    if (page_ == L"Dashboard")
+    {
+        if (btn(L"Export", L"", Btn::Primary, 112).first)
+            ExportBackup();
         std::wstring range = rangeDays_ == 1 ? L"Last 24 hours" : Fmt(L"Last %d days", rangeDays_);
         auto [clicked, b] = btn(range + L"  ▾", nullptr, Btn::Secondary, 150);
-        if (clicked) {
+        if (clicked)
+        {
             OpenMenu(ui.ToScreen(b),
-                     {{L"Last 24 hours", L"", false, [this] { rangeDays_ = 1; pageStart_ = ui.time; }},
-                      {L"Last 7 days", L"", false, [this] { rangeDays_ = 7; pageStart_ = ui.time; }},
-                      {L"Last 30 days", L"", false, [this] { rangeDays_ = 30; pageStart_ = ui.time; }}},
+                     {{L"Last 24 hours", L"", false,
+                       [this] {
+                           rangeDays_ = 1;
+                           pageStart_ = ui.time;
+                       }},
+                      {L"Last 7 days", L"", false,
+                       [this] {
+                           rangeDays_ = 7;
+                           pageStart_ = ui.time;
+                       }},
+                      {L"Last 30 days", L"", false,
+                       [this] {
+                           rangeDays_ = 30;
+                           pageStart_ = ui.time;
+                       }}},
                      190);
         }
-    } else if (IsMacroPage()) {
-        if (btn(L"New macro", L"", Btn::Primary, 136).first) OpenEditor(0);
+    }
+    else if (IsMacroPage())
+    {
+        if (btn(L"New macro", L"", Btn::Primary, 136).first)
+            OpenEditor(0);
         if (btn(L"Import", L"", Btn::Secondary, 108).first)
             ImportMacro();
-    } else if (page_ == L"Tweaks") {
-        if (btn(L"Revert all", L"", Btn::Secondary, 128).first) RevertAllTweaks();
-    } else if (page_ == L"Tester") {
-        if (!runs_.empty() && btn(L"Clear", L"", Btn::Secondary, 100).first) runs_.clear();
-    } else if (page_ == L"Profiles") {
-        if (btn(L"Save current", L"", Btn::Primary, 148).first) {
-            Prompt(L"Save profile", L"PROFILE NAME", L"", [this](const std::wstring& name) {
+    }
+    else if (page_ == L"Tweaks")
+    {
+        if (btn(L"Revert all", L"", Btn::Secondary, 128).first)
+            RevertAllTweaks();
+    }
+    else if (page_ == L"Tester")
+    {
+        if (!runs_.empty() && btn(L"Clear", L"", Btn::Secondary, 100).first)
+            runs_.clear();
+    }
+    else if (page_ == L"Profiles")
+    {
+        if (btn(L"Save current", L"", Btn::Primary, 148).first)
+        {
+            Prompt(L"Save profile", L"PROFILE NAME", L"", [this](const std::wstring &name) {
                 SaveProfile(name, false);
                 return true;
             });
@@ -1068,47 +1343,61 @@ void App::DrawHeader(const Rect& r) {
     }
 }
 
-void App::DrawWindowButtons() {
+void App::DrawWindowButtons()
+{
     bool maxed = hwnd_ && IsZoomed(hwnd_);
     static const Color dots[3] = {Rgb(0xC9A94F), Rgb(0x55C9A6), Rgb(0xE77FA0)};
-    const wchar_t* glyphs[3] = {L"\ue921", maxed ? L"\ue923" : L"\ue922", L"\ue8bb"};
-    const wchar_t* tips[3] = {L"Minimize", maxed ? L"Restore" : L"Maximize", L"Close"};
-    for (int i = 0; i < 3; i++) {
+    const wchar_t *glyphs[3] = {L"\ue921", maxed ? L"\ue923" : L"\ue922", L"\ue8bb"};
+    const wchar_t *tips[3] = {L"Minimize", maxed ? L"Restore" : L"Maximize", L"Close"};
+    for (int i = 0; i < 3; i++)
+    {
         float cx = W_ - 74 + 24 * i, cy = kChrome / 2;
         Rect r{cx - 11, cy - 11, 22, 22};
         ID id = HashId(L"winbtn", (uint64_t)i);
         Interact it = ui.Press(id, r);
         g.Circle(cx, cy, 6.5f + 1.f * it.hoverT, Mix(dots[i], Rgb(0xFFFFFF), 0.15f * it.hoverT));
-        if (it.hoverT > 0.05f) g.Text(glyphs[i], r, WithA(Rgb(0x1A1A1A), it.hoverT), F::Tiny, kCenter);
+        if (it.hoverT > 0.05f)
+            g.Text(glyphs[i], r, WithA(Rgb(0x1A1A1A), it.hoverT), F::Tiny, kCenter);
         ui.Tip(id, tips[i], r);
-        if (it.clicked && hwnd_) {
-            if (i == 0) ShowWindow(hwnd_, SW_MINIMIZE);
-            else if (i == 1) ShowWindow(hwnd_, maxed ? SW_RESTORE : SW_MAXIMIZE);
-            else PostMessageW(hwnd_, WM_CLOSE, 0, 0);
+        if (it.clicked && hwnd_)
+        {
+            if (i == 0)
+                ShowWindow(hwnd_, SW_MINIMIZE);
+            else if (i == 1)
+                ShowWindow(hwnd_, maxed ? SW_RESTORE : SW_MAXIMIZE);
+            else
+                PostMessageW(hwnd_, WM_CLOSE, 0, 0);
         }
     }
 }
 
 // ---------------------------------------------------------------- modal frames
 
-Rect App::ModalBox(ModalKind k, float t) {
+Rect App::ModalBox(ModalKind k, float t)
+{
     float w = 440, h = 200;
-    switch (k) {
-        case ModalKind::Editor:
-            w = std::min(680.f, W_ - 80);
-            h = std::min(H_ - 64, 900.f);
-            break;
-        case ModalKind::Prompt: h = pr_.error.empty() ? 214.f : 236.f; break;
-        case ModalKind::Confirm: h = 160 + g.TextH(cf_.text, F::Body, w - 48); break;
-        case ModalKind::Message:
-            w = 480;
-            h = 156 + std::min(320.f, g.TextH(msg_.text, F::Body, w - 48));
-            break;
+    switch (k)
+    {
+    case ModalKind::Editor:
+        w = std::min(680.f, W_ - 80);
+        h = std::min(H_ - 64, 900.f);
+        break;
+    case ModalKind::Prompt:
+        h = pr_.error.empty() ? 214.f : 236.f;
+        break;
+    case ModalKind::Confirm:
+        h = 160 + g.TextH(cf_.text, F::Body, w - 48);
+        break;
+    case ModalKind::Message:
+        w = 480;
+        h = 156 + std::min(320.f, g.TextH(msg_.text, F::Body, w - 48));
+        break;
     }
     return {std::round((W_ - w) / 2), std::round((H_ - h) / 2 + (1 - t) * 20), w, h};
 }
 
-void App::DrawModal(ModalEntry& m, bool input) {
+void App::DrawModal(ModalEntry &m, bool input)
+{
     float t = EaseOut(m.t);
     Rect box = ModalBox(m.kind, t);
     ui.PushAlpha(Clamp01(m.t * 1.5f));
@@ -1116,19 +1405,30 @@ void App::DrawModal(ModalEntry& m, bool input) {
     g.Shadow(box, 20, 46, 0.8f, 16);
     g.Round(box, 20, T.panel);
     g.RoundStroke(box, 20, T.border2);
-    switch (m.kind) {
-        case ModalKind::Editor: DrawEditor(box, input); break;
-        case ModalKind::Prompt: DrawPrompt(box); break;
-        case ModalKind::Confirm: DrawConfirm(box); break;
-        case ModalKind::Message: DrawMessage(box); break;
+    switch (m.kind)
+    {
+    case ModalKind::Editor:
+        DrawEditor(box, input);
+        break;
+    case ModalKind::Prompt:
+        DrawPrompt(box);
+        break;
+    case ModalKind::Confirm:
+        DrawConfirm(box);
+        break;
+    case ModalKind::Message:
+        DrawMessage(box);
+        break;
     }
     ui.PopXf();
     ui.PopAlpha();
 }
 
-void App::DrawPrompt(const Rect& b) {
+void App::DrawPrompt(const Rect &b)
+{
     g.Text(pr_.title, {b.x + 24, b.y + 20, b.w - 90, 28}, T.text, F::H2);
-    if (ui.IconButton(HashId(L"prompt-x"), {b.R() - 20 - 32, b.y + 18, 32, 32}, L"")) CloseModal(ModalKind::Prompt);
+    if (ui.IconButton(HashId(L"prompt-x"), {b.R() - 20 - 32, b.y + 18, 32, 32}, L""))
+        CloseModal(ModalKind::Prompt);
     Caption(pr_.label, b.x + 24, b.y + 64, T.faint);
     TextBoxOpts o;
     o.mono = pr_.mono;
@@ -1136,8 +1436,10 @@ void App::DrawPrompt(const Rect& b) {
     o.error = !pr_.error.empty();
     o.maxLen = 60000;
     auto r = ui.TextBox(HashId(L"prompt-input"), {b.x + 24, b.y + 84, b.w - 48, 42}, pr_.text, o);
-    if (r.changed) pr_.error.clear();
-    if (!pr_.error.empty()) {
+    if (r.changed)
+        pr_.error.clear();
+    if (!pr_.error.empty())
+    {
         g.Text(L"", {b.x + 24, b.y + 134, 16, 20}, T.amber, F::IconSm);
         g.Text(pr_.error, {b.x + 46, b.y + 134, b.w - 70, 20}, T.amber, F::Small);
     }
@@ -1145,15 +1447,19 @@ void App::DrawPrompt(const Rect& b) {
     bool ok = ui.Button(HashId(L"prompt-ok"), {b.R() - 24 - 110, by, 110, 38}, pr_.ok, Btn::Primary);
     if (ui.Button(HashId(L"prompt-cancel"), {b.R() - 24 - 110 - 10 - 100, by, 100, 38}, L"Cancel", Btn::Secondary))
         CloseModal(ModalKind::Prompt);
-    if ((ok || r.submitted) && ModalOpen(ModalKind::Prompt)) {
+    if ((ok || r.submitted) && ModalOpen(ModalKind::Prompt))
+    {
         auto cb = pr_.onOk;
-        if (!cb || cb(Trim(pr_.text))) CloseModal(ModalKind::Prompt);
+        if (!cb || cb(Trim(pr_.text)))
+            CloseModal(ModalKind::Prompt);
     }
 }
 
-void App::DrawConfirm(const Rect& b) {
+void App::DrawConfirm(const Rect &b)
+{
     float ih = 0;
-    if (cf_.danger) {
+    if (cf_.danger)
+    {
         g.Circle(b.x + 40, b.y + 40, 16, WithA(T.red, 0.15f));
         g.Text(L"", {b.x + 24, b.y + 24, 32, 32}, T.red, F::IconSm, kCenter);
         ih = 44;
@@ -1161,17 +1467,21 @@ void App::DrawConfirm(const Rect& b) {
     g.Text(cf_.title, {b.x + 24 + ih, b.y + 26, b.w - 48 - ih, 28}, T.text, F::H2);
     g.Text(cf_.text, {b.x + 24, b.y + 72, b.w - 48, b.h - 150}, T.dim, F::Body, kLeft, false, true);
     float by = b.B() - 24 - 38;
-    bool ok = ui.Button(HashId(L"cf-ok"), {b.R() - 24 - 116, by, 116, 38}, cf_.ok, cf_.danger ? Btn::Danger : Btn::Primary);
+    bool ok =
+        ui.Button(HashId(L"cf-ok"), {b.R() - 24 - 116, by, 116, 38}, cf_.ok, cf_.danger ? Btn::Danger : Btn::Primary);
     if (ui.Button(HashId(L"cf-cancel"), {b.R() - 24 - 116 - 10 - 100, by, 100, 38}, L"Cancel", Btn::Secondary))
         CloseModal(ModalKind::Confirm);
-    if (ok) {
+    if (ok)
+    {
         auto cb = cf_.onOk;
         CloseModal(ModalKind::Confirm);
-        if (cb) cb();
+        if (cb)
+            cb();
     }
 }
 
-void App::DrawMessage(const Rect& b) {
+void App::DrawMessage(const Rect &b)
+{
     Color c = msg_.error ? T.amber : T.accentHi;
     g.Circle(b.x + 40, b.y + 40, 16, WithA(c, 0.15f));
     g.Text(msg_.error ? L"" : L"", {b.x + 24, b.y + 24, 32, 32}, c, F::IconSm, kCenter);
@@ -1181,16 +1491,20 @@ void App::DrawMessage(const Rect& b) {
         CloseModal(ModalKind::Message);
 }
 
-void App::DrawMenu() {
+void App::DrawMenu()
+{
     float t = ui.Anim(menu_.anim, menu_.open ? 1.f : 0.f, menu_.open ? 22.f : 30.f);
-    if (t <= 0.01f || menu_.items.empty()) return;
+    if (t <= 0.01f || menu_.items.empty())
+        return;
     float w = menu_.width, ih = 38;
     float h = 12;
-    for (size_t i = 0; i < menu_.items.size(); i++) h += ih + ((menu_.items[i].danger && i > 0 && !menu_.items[i - 1].danger) ? 9 : 0);
-    const Rect& a = menu_.anchor;
+    for (size_t i = 0; i < menu_.items.size(); i++)
+        h += ih + ((menu_.items[i].danger && i > 0 && !menu_.items[i - 1].danger) ? 9 : 0);
+    const Rect &a = menu_.anchor;
     Rect box{std::max(8.f, a.R() - w), a.B() + 6, w, h};
     bool up = box.B() > H_ - 8;
-    if (up) box.y = a.y - 6 - h;
+    if (up)
+        box.y = a.y - 6 - h;
     bool input = menu_.open;
     ui.PushAlpha(t);
     ui.PushScale(0.92f + 0.08f * EaseOut(t), box.R() - 16, up ? box.B() : box.y);
@@ -1200,9 +1514,11 @@ void App::DrawMenu() {
     float y = box.y + 6;
     std::function<void()> pending;
     bool clickedItem = false;
-    for (size_t i = 0; i < menu_.items.size(); i++) {
-        auto& item = menu_.items[i];
-        if (item.danger && i > 0 && !menu_.items[i - 1].danger) {
+    for (size_t i = 0; i < menu_.items.size(); i++)
+    {
+        auto &item = menu_.items[i];
+        if (item.danger && i > 0 && !menu_.items[i - 1].danger)
+        {
             g.Fill({box.x + 12, y + 4, box.w - 24, 1}, T.border2);
             y += 9;
         }
@@ -1210,43 +1526,52 @@ void App::DrawMenu() {
         ui.inputOn = input;
         Interact it = ui.Press(HashId(menu_.anim, i + 1), r, item.act != nullptr);
         g.Round(r, 9, item.danger ? WithA(T.red, 0.14f * it.hoverT) : WithA(T.panel3, it.hoverT));
-        g.Text(item.glyph, {r.x + 8, r.y, 22, r.h}, item.danger ? T.red : Mix(T.dim, T.text, it.hoverT), F::IconSm, kCenter);
+        g.Text(item.glyph, {r.x + 8, r.y, 22, r.h}, item.danger ? T.red : Mix(T.dim, T.text, it.hoverT), F::IconSm,
+               kCenter);
         g.Text(item.label, {r.x + 38, r.y, r.w - 44, r.h}, item.danger ? T.red : T.text, F::Body);
-        if (it.clicked && input) {
+        if (it.clicked && input)
+        {
             pending = item.act;
             clickedItem = true;
         }
         y += ih;
     }
-    if (input && ui.in.pressed && !box.Has(ui.in.mx, ui.in.my)) menu_.open = false;
+    if (input && ui.in.pressed && !box.Has(ui.in.mx, ui.in.my))
+        menu_.open = false;
     ui.PopXf();
     ui.PopAlpha();
     ui.inputOn = true;
-    if (clickedItem) {
+    if (clickedItem)
+    {
         menu_.open = false;
-        if (pending) pending();
+        if (pending)
+            pending();
     }
 }
 
-void App::DrawToasts() {
+void App::DrawToasts()
+{
     double now = ui.time;
-    toasts_.erase(std::remove_if(toasts_.begin(), toasts_.end(), [&](auto& t) { return now - t.born > 3.7; }),
+    toasts_.erase(std::remove_if(toasts_.begin(), toasts_.end(), [&](auto &t) { return now - t.born > 3.7; }),
                   toasts_.end());
     float y = H_ - 26;
     float cx = sideW_ + (W_ - sideW_) / 2;
-    for (int i = (int)toasts_.size() - 1; i >= 0; i--) {
-        Toast& t = toasts_[i];
+    for (int i = (int)toasts_.size() - 1; i >= 0; i--)
+    {
+        Toast &t = toasts_[i];
         double age = now - t.born;
         float in = ui.reduceMotion ? 1.f : EaseOutBack((float)age / 0.4f);
         float out = age > 3.3 ? 1 - Clamp01((float)(age - 3.3) / 0.35f) : 1.f;
-        if (age < 0.45 || age > 3.3) ui.Keep();
-        else ui.WakeIn(3.3 - age);
+        if (age < 0.45 || age > 3.3)
+            ui.Keep();
+        else
+            ui.WakeIn(3.3 - age);
         float tw = std::min(520.f, g.TextW(t.text, F::Body));
         float w = tw + 64, h = 46;
         float yy = ui.Spring(t.id, y - h, 380.f, 30.f);
         Rect r{std::round(cx - w / 2), yy + (1 - in) * 26, w, h};
         Color c = t.kind == 1 ? T.green : t.kind == 2 ? T.amber : T.accentHi;
-        const wchar_t* glyph = t.kind == 1 ? L"" : t.kind == 2 ? L"" : L"";
+        const wchar_t *glyph = t.kind == 1 ? L"" : t.kind == 2 ? L"" : L"";
         ui.PushAlpha(Clamp01(in) * out);
         g.Shadow(r, 14, 20, 0.6f, 6);
         g.Round(r, 14, T.panel);
@@ -1261,17 +1586,21 @@ void App::DrawToasts() {
 
 // ---------------------------------------------------------------- license
 
-void App::Activate(const std::wstring& key, bool remember) {
-    if (licBusy_) return;
+void App::Activate(const std::wstring &key, bool remember)
+{
+    if (licBusy_)
+        return;
     licBusy_ = true;
     licError_.clear();
     RunAsync([this, key, remember]() -> std::function<void()> {
         LicenseResult r = License::Activate(key);
         return [this, r, key, remember] {
             licBusy_ = false;
-            if (!r.ok) {
+            if (!r.ok)
+            {
                 licError_ = r.error;
-                if (!remember) licKey_ = key;  // a saved key failed: show it so it can be fixed
+                if (!remember)
+                    licKey_ = key; // a saved key failed: show it so it can be fixed
                 return;
             }
             lic_ = r;
@@ -1284,14 +1613,16 @@ void App::Activate(const std::wstring& key, bool remember) {
             bool low = r.expiry > 0 && rem > 0 && rem < 2 * 86400;
             if (low)
                 ShowToast(rem < 86400 ? Fmt(L"Heads up: your key expires in %lld hours.", std::max(1ll, rem / 3600))
-                                      : L"Heads up: your key expires in under 2 days.", 2);
+                                      : L"Heads up: your key expires in under 2 days.",
+                          2);
             else if (remember)
                 ShowToast(L"Activated. Welcome!", 1);
         };
     });
 }
 
-void App::SignOut(const std::wstring& why) {
+void App::SignOut(const std::wstring &why)
+{
     licensed_ = false;
     lic_ = {};
     licError_ = why;
@@ -1303,7 +1634,8 @@ void App::SignOut(const std::wstring& why) {
 }
 
 // key entry screen
-void App::DrawLicenseGate(float W, float H) {
+void App::DrawLicenseGate(float W, float H)
+{
     float t = ui.Anim(0x11CE5E, 1.f, 6.f, 0.f);
     Rect card{std::round((W - 440) / 2), std::round((H - 380) / 2 + 10 * (1 - t)), 440, 380};
     ui.PushAlpha(EaseOut(t));
@@ -1320,25 +1652,31 @@ void App::DrawLicenseGate(float W, float H) {
     o.maxLen = 120;
     o.error = !licError_.empty();
     ID kid = HashId(L"license-key");
-    if (ui.focus == 0 && !licBusy_) ui.focus = kid;
+    if (ui.focus == 0 && !licBusy_)
+        ui.focus = kid;
     auto res = ui.TextBox(kid, box, licKey_, o);
-    if (res.changed) licError_.clear();
+    if (res.changed)
+        licError_.clear();
     Rect btn{card.x + 30, card.y + 222, card.w - 60, 44};
     bool configured = License::Configured();
     bool go = ui.Button(HashId(L"license-go"), btn, licBusy_ ? L"" : L"Activate", Btn::Primary, nullptr,
                         configured && !licBusy_ && !Trim(licKey_).empty());
-    if (licBusy_) ui.Spinner(btn.Cx(), btn.Cy(), 9, T.onPrimary);
-    if ((go || res.submitted) && configured && !licBusy_ && !Trim(licKey_).empty()) Activate(licKey_, true);
+    if (licBusy_)
+        ui.Spinner(btn.Cx(), btn.Cy(), 9, T.onPrimary);
+    if ((go || res.submitted) && configured && !licBusy_ && !Trim(licKey_).empty())
+        Activate(licKey_, true);
     std::wstring msg = !configured ? L"This build isn't connected to KeyAuth yet (license.h)."
                        : licBusy_  ? L"Checking your key…"
                                    : licError_;
     if (!msg.empty())
-        g.Text(msg, {card.x + 30, card.y + 276, card.w - 60, 40}, licBusy_ ? T.dim : T.red, F::Small, kCenter, false, true);
+        g.Text(msg, {card.x + 30, card.y + 276, card.w - 60, 40}, licBusy_ ? T.dim : T.red, F::Small, kCenter, false,
+               true);
     std::wstring hw = L"HWID " + License::Hwid().substr(0, 12) + L"…";
     float hw_w = g.TextW(hw, F::MonoSmall);
     g.Text(hw, {card.Cx() - (hw_w + 70) / 2, card.B() - 44, hw_w + 4, 24}, T.faint, F::MonoSmall);
-    if (ui.Button(HashId(L"license-copyhwid"), {card.Cx() - (hw_w + 70) / 2 + hw_w + 10, card.B() - 46, 60, 28}, L"Copy",
-                  Btn::Ghost)) {
+    if (ui.Button(HashId(L"license-copyhwid"), {card.Cx() - (hw_w + 70) / 2 + hw_w + 10, card.B() - 46, 60, 28},
+                  L"Copy", Btn::Ghost))
+    {
         SetClipboardText(hwnd_, License::Hwid());
         ShowToast(L"HWID copied", 1);
     }
@@ -1346,11 +1684,13 @@ void App::DrawLicenseGate(float W, float H) {
 }
 
 // first run tutorial
-void App::DrawTutorial(float W, float H) {
-    struct Step {
-        const wchar_t* glyph;
-        const wchar_t* title;
-        const wchar_t* body;
+void App::DrawTutorial(float W, float H)
+{
+    struct Step
+    {
+        const wchar_t *glyph;
+        const wchar_t *title;
+        const wchar_t *body;
     };
     static const Step steps[] = {
         {L"", L"Welcome to Macro Tool",
@@ -1370,11 +1710,11 @@ void App::DrawTutorial(float W, float H) {
     };
     int n = (int)std::size(steps);
     int i = std::clamp(tutorialStep_, 0, n - 1);
-    const Step& s = steps[i];
+    const Step &s = steps[i];
 
     g.Fill({0, 0, W, H}, WithA(T.overlay, 1.1f));
     float appear = ui.Anim(0x70701A, 1.f, 10.f, 0.f);
-    float slide = ui.Spring(HashId(L"tut-slide", (uint64_t)i), 0.f, 420.f, 34.f);  // nudge on step change
+    float slide = ui.Spring(HashId(L"tut-slide", (uint64_t)i), 0.f, 420.f, 34.f); // nudge on step change
     Rect card{std::round((W - 460) / 2), std::round((H - 360) / 2 + 12 * (1 - appear)), 460, 360};
     ui.PushAlpha(EaseOut(appear));
     g.Shadow(card, 16, 30, 0.4f, 8);
@@ -1392,7 +1732,8 @@ void App::DrawTutorial(float W, float H) {
 
     // progress dots
     float dotY = card.B() - 64, dw = n * 16.f;
-    for (int k = 0; k < n; k++) {
+    for (int k = 0; k < n; k++)
+    {
         float on = ui.Anim(HashId(L"tut-dot", (uint64_t)k), k == i ? 1.f : 0.f, 14.f);
         g.Circle(card.Cx() - dw / 2 + 8 + k * 16, dotY, 3.5f + 1.5f * on, Mix(T.border2, T.accent, on));
     }
@@ -1400,37 +1741,51 @@ void App::DrawTutorial(float W, float H) {
     Rect back{card.x + 24, card.B() - 24 - 38, 96, 38};
     Rect next{card.R() - 24 - 130, card.B() - 24 - 38, 130, 38};
     bool last = i == n - 1;
-    if (i > 0 && ui.Button(HashId(L"tut-back"), back, L"Back", Btn::Ghost)) {
+    if (i > 0 && ui.Button(HashId(L"tut-back"), back, L"Back", Btn::Ghost))
+    {
         tutorialStep_ = i - 1;
         ui.SetAnim(HashId(L"tut-slide", (uint64_t)tutorialStep_), 26.f);
     }
-    if (!last && ui.Button(HashId(L"tut-skip"), {card.Cx() - 48, card.B() - 24 - 38, 96, 38}, L"Skip", Btn::Ghost)) {
+    if (!last && ui.Button(HashId(L"tut-skip"), {card.Cx() - 48, card.B() - 24 - 38, 96, 38}, L"Skip", Btn::Ghost))
+    {
         cfg_.tutorialDone = true;
         SaveCfg();
     }
-    if (ui.Button(HashId(L"tut-next"), next, last ? L"Start building" : L"Next", Btn::Primary)) {
-        if (last) {
+    if (ui.Button(HashId(L"tut-next"), next, last ? L"Start building" : L"Next", Btn::Primary))
+    {
+        if (last)
+        {
             cfg_.tutorialDone = true;
             SaveCfg();
             Navigate(L"Editing");
             ShowToast(L"You're set. Fire away!", 1);
-        } else {
+        }
+        else
+        {
             tutorialStep_ = i + 1;
             ui.SetAnim(HashId(L"tut-slide", (uint64_t)tutorialStep_), -26.f);
-            if (i == 0) Navigate(L"Settings");  // show where the keybinds live
+            if (i == 0)
+                Navigate(L"Settings"); // show where the keybinds live
         }
     }
     // Enter advances, Esc skips
-    for (auto& k : ui.in.keys) {
-        if (k.vk == VK_RETURN) {
-            if (last) {
+    for (auto &k : ui.in.keys)
+    {
+        if (k.vk == VK_RETURN)
+        {
+            if (last)
+            {
                 cfg_.tutorialDone = true;
                 SaveCfg();
                 Navigate(L"Editing");
-            } else {
+            }
+            else
+            {
                 tutorialStep_ = i + 1;
             }
-        } else if (k.vk == VK_ESCAPE) {
+        }
+        else if (k.vk == VK_ESCAPE)
+        {
             cfg_.tutorialDone = true;
             SaveCfg();
         }

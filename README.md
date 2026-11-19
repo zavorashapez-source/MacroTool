@@ -1,82 +1,83 @@
-# Macro Tool — free & open source
+# Macro Tool
 
-A fast, native **C++/Direct2D** macro tool for Fortnite. Input macros only — bind
-a key to a sequence of key/mouse presses (edit, build, movement, etc.). Free,
-no key, full source included.
+Free macro tool for Fortnite, written in C++ (Win32 + Direct2D). You bind a key to a
+list of key/mouse presses and it plays them back. Edits, builds, movement, whatever.
+No key needed, source is all here.
 
-> **What this is NOT:** there is **no aimbot, no trigger bot, no ESP, no screen
-> overlay reading players.** This tool only sends keyboard/mouse inputs you have
-> configured. The only screen reading it does (optional, off by default) is the
-> "Edit Fix" feature, which samples the centre of your own screen for the blue
-> edit-overlay colour so it can tap your reset key if you get stuck in edit mode.
+It only sends the inputs you set up yourself. No aimbot, no triggerbot, no ESP. The
+only thing that looks at the screen is Edit Fix (off by default): it checks a few
+pixels in the middle of your screen for the blue edit colour and taps your reset key
+if you got stuck in edit mode.
 
 ## Features
 
-- **Native macro engine** — low-level keyboard/mouse hooks on a dedicated
-  high-priority thread, so inputs stay tight even under load.
-- **Frame-sync timing** — "Frame better" humanises step timing with tiny random
-  jitter so taps always register; "Frame legacy" is exact frame-per-step.
-- **Ready-made Fortnite macros** — Single Edit, Drag Edit, Edit Reset, Edit Spam,
-  Wall + Edit Peek, and more, organised by category.
-- **Macro editor** — name, category, trigger key, on-press / on-release steps,
-  colour-coded syntax, quick-insert chips, step validation, in-game recorder,
-  repeat / toggle / block-key options.
-- **Edit Fix** — optional auto-recovery from a stuck edit: colour detection taps
-  your reset key, plus a Key-check throttle that spaces rapid edit spam so it
-  can't jam. (Needs borderless/windowed.)
-- **Profiles & setup codes** — save/switch whole setups, and share all your
-  macros with one `MTP1:…` code (or one macro with `MT1:…`).
-- **Tweaks & Tester** — handy Windows tweaks and a live input tester.
-- **Premium UI** — Direct2D, smooth spring animations, light/dark themes,
-  command search (`/` or `Ctrl+F`), keyboard shortcuts.
+- Macro engine on low-level hooks, running on its own high priority thread so timing
+  stays tight even when the PC is busy
+- Frame timing. "Frame better" adds a tiny random jitter so taps register reliably,
+  "Frame legacy" is one frame per step, exact
+- Built-in Fortnite macros: Single Edit, Drag Edit, Edit Reset, Edit Spam, Wall + Edit
+  Peek and more, sorted by category
+- Macro editor with syntax colouring, quick insert chips, a recorder, repeat/toggle and
+  on-press / on-release steps
+- In-game menu: press Insert in game and you get a menu over Fortnite with a column per
+  category. Click a macro to turn it on or off. Insert or Esc closes it and you're back
+  in the game. It's a normal window, nothing gets injected. Needs borderless/windowed
+- Edit / reset on release: if you have those turned on in Fortnite, switch this on too
+  and the edit macros stop pressing the extra confirm key
+- Edit Fix: resets a stuck edit automatically, plus "Key check" which spaces out edit
+  spam so it doesn't jam. Needs borderless/windowed
+- Profiles and share codes. `MTP1:...` is your whole setup, `MT1:...` is one macro
+- Windows tweaks page and an input tester
+- Light/dark theme, search (`/` or Ctrl+F), keyboard shortcuts
 
-## Running it
+## How to use
 
-1. Run `MacroTool.exe`. It asks for **Administrator** — Windows requires elevation
-   for an app to send input into a game running as admin.
-2. Set your in-game keybinds in **Settings → Game keybinds** (so `{Edit}`, `{Wall}`
-   resolve to your keys), then give each macro a trigger key.
-3. **F8** turns all macros on/off. By default macros only fire while Fortnite is
-   the focused window.
+1. Run `MacroTool.exe`. It wants admin, because Windows doesn't let a normal app send
+   input into a game that runs as admin.
+2. Settings > Game keybinds: put in your Fortnite binds so `{Edit}`, `{Wall}` etc. are
+   your keys. Then give the macros you want a trigger key.
+3. F8 turns everything on/off. By default macros only fire when Fortnite is the active
+   window.
+4. Insert opens the in-game menu (Settings > General > In-game menu). If you use Edit /
+   Reset on release in Fortnite, turn on "Edit / reset on release" there as well.
 
-### Windows Defender / "virus" warning
+### Defender says it's a virus
 
-The exe is **unsigned** and installs a global keyboard hook and runs as admin —
-that trips heuristic flags (e.g. `Wacatac`) on some engines. It is a **false
-positive**. You can read every line of source here and build it yourself. To run
-it, click **More info → Run anyway** in SmartScreen, or allow it in Defender.
-A code-signing certificate would remove the warning but costs money.
+It's an unsigned exe that runs as admin and hooks the keyboard, so some antivirus
+engines flag it (usually as `Wacatac`). That's a false positive. The source is right
+here, read it or build it yourself. To run it click More info > Run anyway in
+SmartScreen, or allow it in Defender. A signing certificate would fix this but it
+costs money.
 
-## Building from source
+## Building
 
-Requires **Visual Studio 2022** with the "Desktop development with C++" workload.
+You need Visual Studio 2022 with "Desktop development with C++". Then run:
 
 ```
 build.bat
 ```
 
-This produces `bin\MacroTool.exe` (admin manifest) and `bin\MacroTool-dev.exe`
-(no UAC, for testing). The build is `/O2 /MT /LTCG`, no PDB, static CRT —
-a single self-contained ~1 MB exe, no DLLs.
+You get `bin\MacroTool.exe` (asks for admin) and `bin\MacroTool-dev.exe` (no UAC
+prompt, for testing). It's built with `/O2 /MT /LTCG` and no PDB, so it's a single
+~1 MB exe with no DLLs.
 
-## Keyboard shortcuts
+## Shortcuts
 
-| Key | Action |
+| Key | What it does |
 |-----|--------|
-| `F8` | Master on/off |
-| `/` or `Ctrl+F` | Search |
-| `Ctrl+N` | New macro |
-| `Ctrl+S` | Save (in editor) |
-| `Ctrl+Enter` | Save from the steps box |
-| `Esc` | Close dialog / stop recording |
+| F8 | Macros on/off |
+| Insert | In-game menu |
+| `/` or Ctrl+F | Search |
+| Ctrl+N | New macro |
+| Ctrl+S | Save (editor) |
+| Ctrl+Enter | Save from the steps box |
+| Esc | Close dialog / stop recording |
 
 ## Disclaimer
 
-Provided **as-is, for educational purposes**, with no warranty. Input automation
-may violate the terms of service of Fortnite / Epic Games and **could get your
-account banned**. You are solely responsible for how you use it. The authors are
-not liable for any consequences.
+Use at your own risk, no warranty. Macros can break Fortnite / Epic Games terms of
+service and you can get banned for it. That's on you, not on whoever wrote this.
 
 ## License
 
-Free to use, modify and share. No warranty.
+Free to use, change and share. No warranty.

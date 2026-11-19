@@ -1,0 +1,7 @@
+bin/
+obj/
+*.log
+macros.json
+stats.json
+license.dat
+menu-preview.png

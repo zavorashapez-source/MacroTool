@@ -12,34 +12,38 @@ constexpr UINT WM_APP_ENGINE = WM_APP + 1;
 constexpr UINT WM_APP_TESTER = WM_APP + 2;
 constexpr UINT WM_APP_MONITOR = WM_APP + 3;
 constexpr UINT WM_APP_TASK = WM_APP + 4;
-constexpr UINT WM_APP_MENU = WM_APP + 5;  // wParam = macro id (menu click)
+constexpr UINT WM_APP_MENU = WM_APP + 5; // wParam = macro id (menu click)
 
 constexpr float kSideOpen = 256.f;
 constexpr float kSideClosed = 76.f;
 constexpr float kTopH = 68.f;
-constexpr float kChrome = 40.f;  // title strip above everything
+constexpr float kChrome = 40.f; // title strip above everything
 
-void DrawLogo(Gfx& g, const Rect& r);
+void DrawLogo(Gfx &g, const Rect &r);
 double NowSeconds();
 
 std::wstring StatsDayKey(int daysAgo);
 std::wstring StatsHourKey(int hoursAgo);
 
 // fire counts, saved to stats.json
-struct Stats {
+struct Stats
+{
     std::map<std::wstring, int> days;   // "2026-10-27"
     std::map<std::wstring, int> hours;  // "2026-10-27 14"
     std::map<std::wstring, int> macros; // name -> count, all time
     int total = 0;
     bool dirty = false;
-    void Add(const std::wstring& macro);
+    void Add(const std::wstring &macro);
     void Load();
     void Save();
 };
 
-class App {
-public:
-    App(Gfx& g, UI& ui) : g(g), ui(ui) {}
+class App
+{
+  public:
+    App(Gfx &g, UI &ui) : g(g), ui(ui)
+    {
+    }
 
     // preview: render only (for --shot), no hooks/threads/saving
     void Init(HWND hwnd, bool preview);
@@ -48,7 +52,9 @@ public:
 
     void OnEngine();
     void OnTester();
-    void OnMonitor() {}
+    void OnMonitor()
+    {
+    }
     void OnTasks();
     void OnMenu(int id);
     void OnActivate(bool active);
@@ -56,16 +62,18 @@ public:
     std::wstring StartupWarning;
 
     // --shot helpers
-    void Navigate(const std::wstring& page);
+    void Navigate(const std::wstring &page);
     void OpenEditor(int macroId);
-    void PreviewSetup(const std::wstring& scenario);
+    void PreviewSetup(const std::wstring &scenario);
 
-private:
-    struct Issue {
+  private:
+    struct Issue
+    {
         std::wstring text;
         bool error = false;
     };
-    struct EditorState {
+    struct EditorState
+    {
         int macroId = 0;
         bool isNew = false;
         std::wstring name, trigger, steps, release;
@@ -77,98 +85,125 @@ private:
         bool recording = false;
         std::wstring recInfo;
     };
-    struct PromptState {
+    struct PromptState
+    {
         std::wstring title, label, text, placeholder, ok;
         bool mono = false;
-        std::function<bool(const std::wstring&)> onOk;  // false keeps the dialog open
+        std::function<bool(const std::wstring &)> onOk; // false keeps the dialog open
         std::wstring error;
     };
-    struct ConfirmState {
+    struct ConfirmState
+    {
         std::wstring title, text, ok;
         bool danger = false;
         std::function<void()> onOk;
     };
-    struct MessageState {
+    struct MessageState
+    {
         std::wstring title, text;
         bool error = false;
     };
-    enum class ModalKind { Editor, Prompt, Confirm, Message };
-    struct ModalEntry {
+    enum class ModalKind
+    {
+        Editor,
+        Prompt,
+        Confirm,
+        Message
+    };
+    struct ModalEntry
+    {
         ModalKind kind;
         bool closing = false;
         ID anim;
         float t = 0;
     };
-    struct MenuItem {
+    struct MenuItem
+    {
         std::wstring label;
-        const wchar_t* glyph;
+        const wchar_t *glyph;
         bool danger;
         std::function<void()> act;
     };
-    struct MenuState {
+    struct MenuState
+    {
         bool open = false;
         Rect anchor;
         std::vector<MenuItem> items;
         ID anim = 0;
         float width = 214;
     };
-    struct Toast {
+    struct Toast
+    {
         std::wstring text;
-        int kind;  // 0 info, 1 success, 2 warning
+        int kind; // 0 info, 1 success, 2 warning
         double born;
         ID id;
     };
-    struct Capture {
-        enum Kind { None, MacroKey, EditorKey, BindKey, ToggleKey, ResetKey } kind = None;
+    struct Capture
+    {
+        enum Kind
+        {
+            None,
+            MacroKey,
+            EditorKey,
+            BindKey,
+            ToggleKey,
+            ResetKey
+        } kind = None;
         int macroId = 0;
         std::wstring bind;
         int token = 0;
         ID chip = 0;
     };
-    struct TesterRun {
+    struct TesterRun
+    {
         std::wstring name;
         long long qpc0 = 0;
         double at = 0;
         std::vector<TesterEvent> ev;
         ID id;
     };
-    struct ProfileInfo {
+    struct ProfileInfo
+    {
         std::wstring name, path, sub;
     };
-    struct TweakUi {
+    struct TweakUi
+    {
         int state = -1;
         bool busy = false;
     };
-    struct Recent {
+    struct Recent
+    {
         std::wstring name, key;
         double at;
     };
-    struct SearchHit {
+    struct SearchHit
+    {
         std::wstring title, sub, page;
-        const wchar_t* glyph;
+        const wchar_t *glyph;
         int macroId;
     };
     // state changes
     void Changed();
     void SaveCfg();
     void RecomputeIssues();
-    Macro* FindMacro(int id);
-    void StartCapture(Capture::Kind k, ID chip, int macroId = 0, const std::wstring& bind = L"");
+    Macro *FindMacro(int id);
+    void StartCapture(Capture::Kind k, ID chip, int macroId = 0, const std::wstring &bind = L"");
     void CancelCapture();
     void ApplyCapture(int vk);
     void SetMaster(bool on);
     void SetTheme(bool light);
-    void ShowToast(const std::wstring& text, int kind = 0);
+    void ShowToast(const std::wstring &text, int kind = 0);
     void OpenModal(ModalKind k);
     void CloseModal(ModalKind k);
     bool ModalOpen(ModalKind k) const;
-    void Prompt(const std::wstring& title, const std::wstring& label, const std::wstring& initial,
-                std::function<bool(const std::wstring&)> onOk, const std::wstring& ok = L"Save", bool mono = false,
-                const std::wstring& placeholder = L"");
-    void Confirm(const std::wstring& title, const std::wstring& text, const std::wstring& ok, bool danger,
+    void Prompt(const std::wstring &title, const std::wstring &label, const std::wstring &initial,
+                std::function<bool(const std::wstring &)> onOk, const std::wstring &ok = L"Save", bool mono = false,
+                const std::wstring &placeholder = L"");
+    void Confirm(const std::wstring &title, const std::wstring &text, const std::wstring &ok, bool danger,
                  std::function<void()> onOk);
-    void Message(const std::wstring& title, const std::wstring& text, bool error = false);
-    void OpenMenu(const Rect& anchorScreen, std::vector<MenuItem> items, float width = 214);
+    void Message(const std::wstring &title, const std::wstring &text, bool error = false);
+    void OpenMenu(const Rect &anchorScreen, std::vector<MenuItem> items, float width = 214);
     void RunAsync(std::function<std::function<void()>()> work);
     void HandleKeys();
 
@@ -186,8 +221,8 @@ private:
     void RunAction(size_t i);
     void RevertAllTweaks();
     void RefreshProfiles();
-    void SaveProfile(const std::wstring& name, bool overwriteOk);
-    void LoadProfile(const ProfileInfo& p);
+    void SaveProfile(const std::wstring &name, bool overwriteOk);
+    void LoadProfile(const ProfileInfo &p);
     std::vector<SearchHit> SearchResults();
 
     // drawing
@@ -195,52 +230,52 @@ private:
     void DrawSplash(float W, float H);
     void DrawTutorial(float W, float H);
     void DrawLicenseGate(float W, float H);
-    void Activate(const std::wstring& key, bool remember);
-    void SignOut(const std::wstring& why);
+    void Activate(const std::wstring &key, bool remember);
+    void SignOut(const std::wstring &why);
     void DrawSidebar(float sideW);
     void DrawSideFooter(float sideW, float open);
-    void DrawTopBar(const Rect& bar);
+    void DrawTopBar(const Rect &bar);
     void DrawSearchResults();
-    void DrawHeader(const Rect& r);
+    void DrawHeader(const Rect &r);
     void DrawWindowButtons();
-    void PageDashboard(const Rect& area);
-    void PageCategory(const Rect& area);
-    void PageTweaks(const Rect& area);
-    void PageTester(const Rect& area);
-    void PageProfiles(const Rect& area);
-    void PageSettings(const Rect& area);
-    float MacroList(const std::wstring& category, float x, float y, float w, int firstRow);
-    void MacroRow(Macro& m, const Rect& r);
-    bool KeyCap(ID id, const Rect& r, const std::wstring& label, bool empty, bool capturing, float fire, bool lit,
+    void PageDashboard(const Rect &area);
+    void PageCategory(const Rect &area);
+    void PageTweaks(const Rect &area);
+    void PageTester(const Rect &area);
+    void PageProfiles(const Rect &area);
+    void PageSettings(const Rect &area);
+    float MacroList(const std::wstring &category, float x, float y, float w, int firstRow);
+    void MacroRow(Macro &m, const Rect &r);
+    bool KeyCap(ID id, const Rect &r, const std::wstring &label, bool empty, bool capturing, float fire, bool lit,
                 F font = F::Semi);
-    void StatCard(const Rect& r, const wchar_t* glyph, Color c, const std::wstring& label, const std::wstring& value,
-                  const std::wstring& delta, Color deltaC, int i);
-    void Card(const Rect& r);
-    void CardTitle(const Rect& r, const std::wstring& title, const std::wstring& legend = L"", Color legendC = {});
-    float EmptyState(const Rect& area, const wchar_t* glyph, const std::wstring& title, const std::wstring& text);
-    void Caption(const std::wstring& text, float x, float y, Color c);
+    void StatCard(const Rect &r, const wchar_t *glyph, Color c, const std::wstring &label, const std::wstring &value,
+                  const std::wstring &delta, Color deltaC, int i);
+    void Card(const Rect &r);
+    void CardTitle(const Rect &r, const std::wstring &title, const std::wstring &legend = L"", Color legendC = {});
+    float EmptyState(const Rect &area, const wchar_t *glyph, const std::wstring &title, const std::wstring &text);
+    void Caption(const std::wstring &text, float x, float y, Color c);
     float RowAppear(int i);
-    void DrawModal(ModalEntry& m, bool input);
-    void DrawEditor(const Rect& box, bool input);
-    void DrawPrompt(const Rect& box);
-    void DrawConfirm(const Rect& box);
-    void DrawMessage(const Rect& box);
+    void DrawModal(ModalEntry &m, bool input);
+    void DrawEditor(const Rect &box, bool input);
+    void DrawPrompt(const Rect &box);
+    void DrawConfirm(const Rect &box);
+    void DrawMessage(const Rect &box);
     Rect ModalBox(ModalKind k, float t);
     void DrawMenu();
     void DrawToasts();
 
     bool IsMacroPage() const;
     std::wstring TimingLabel() const;
-    const wchar_t* PageGlyph(const std::wstring& page) const;
+    const wchar_t *PageGlyph(const std::wstring &page) const;
 
-    Gfx& g;
-    UI& ui;
+    Gfx &g;
+    UI &ui;
     HWND hwnd_ = nullptr;
     bool preview_ = false;
     bool active_ = true;
     float W_ = 0, H_ = 0;
     float sideW_ = kSideOpen;
-    std::vector<Rect> holes_;  // clickable bits inside the drag area
+    std::vector<Rect> holes_; // clickable bits inside the drag area
 
     Config cfg_;
     Engine engine_;
@@ -280,8 +315,8 @@ private:
     bool tweaksLoading_ = false;
     bool tweaksLoaded_ = false;
 
-    double splashAt_ = -1;   // splash start
-    int tutorialStep_ = -1;  // first run tutorial, -1 = off
+    double splashAt_ = -1;  // splash start
+    int tutorialStep_ = -1; // first run tutorial, -1 = off
     bool licensed_ = false;
     bool licBusy_ = false;
     std::wstring licKey_, licError_;

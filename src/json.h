@@ -4,12 +4,22 @@
 #include <vector>
 
 // minimal json dom (keeps key order, utf-8 strings)
-namespace json {
+namespace json
+{
 
 struct Member;
 
-struct Value {
-    enum Type { Null, Bool, Num, Str, Arr, Obj };
+struct Value
+{
+    enum Type
+    {
+        Null,
+        Bool,
+        Num,
+        Str,
+        Arr,
+        Obj
+    };
     Type t = Null;
     bool b = false;
     double n = 0;
@@ -24,17 +34,18 @@ struct Value {
     static Value Object();
 
     // Object lookup, ASCII case-insensitive.
-    const Value* Get(std::string_view key) const;
+    const Value *Get(std::string_view key) const;
     void Set(std::string key, Value v);
     void Push(Value v);
 };
 
-struct Member {
+struct Member
+{
     std::string k;
     Value v;
 };
 
-bool Parse(std::string_view text, Value& out);
-std::string Write(const Value& v, bool indent);
+bool Parse(std::string_view text, Value &out);
+std::string Write(const Value &v, bool indent);
 
-}  // namespace json
+} // namespace json

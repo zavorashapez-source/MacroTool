@@ -8,60 +8,84 @@
 #include <thread>
 #include <unordered_map>
 
-namespace Input {
+namespace Input
+{
 extern std::atomic<bool> dryRun;
 void Send(int vk, bool down);
 // Relative mouse movement in raw counts.
 void Move(int dx, int dy);
 // key-up for anything still held (exit / macros off)
 void ReleaseStuck();
-}  // namespace Input
+} // namespace Input
 
 // for the Tester page
-struct TesterEvent {
+struct TesterEvent
+{
     bool fire = false;
     std::wstring macro;
     int key = 0;
     bool down = false;
     long long qpc = 0;
-    int dx = 0, dy = 0;  // key == kMouseMove
+    int dx = 0, dy = 0; // key == kMouseMove
 };
 
-namespace Tester {
+namespace Tester
+{
 void SetNotify(HWND wnd, UINT msg);
 void SetListening(bool on);
 std::vector<TesterEvent> Drain();
-}  // namespace Tester
+} // namespace Tester
 
-struct EngineMsg {
-    enum Type { Fired, Stopped, Toggled, Menu, Captured, CaptureCanceled, RecordStopped } type;
+struct EngineMsg
+{
+    enum Type
+    {
+        Fired,
+        Stopped,
+        Toggled,
+        Menu,
+        Captured,
+        CaptureCanceled,
+        RecordStopped
+    } type;
     int macroId = 0;
     int key = 0;
     int token = 0;
 };
 
-class Engine {
-public:
+class Engine
+{
+  public:
     // hooks get their own high prio thread so a busy UI can't make windows drop them
     void Start(HWND notify, UINT msg);
     void Shutdown();
 
-    void Reindex(const Config& cfg);
+    void Reindex(const Config &cfg);
     void SetEnabled(bool on);
-    bool Enabled() const { return enabled_.load(); }
+    bool Enabled() const
+    {
+        return enabled_.load();
+    }
 
     void BeginCapture(int token);
     void CancelCapture();
-    bool Capturing() const { return capture_.load(); }
+    bool Capturing() const
+    {
+        return capture_.load();
+    }
 
     // Esc ends recording (works in game)
     void BeginRecord();
     std::vector<InputEvent> EndRecord();
-    bool Recording() const { return recording_.load(); }
+    bool Recording() const
+    {
+        return recording_.load();
+    }
     size_t RecordCount();
 
     // typing in one of our text boxes -> no macros
-    void SetTyping(bool typing, HWND mainWnd) {
+    void SetTyping(bool typing, HWND mainWnd)
+    {
         typing_ = typing;
         mainWnd_ = mainWnd;
     }
@@ -71,43 +95,47 @@ public:
 
     // locked: everything passes through, nothing fires
     void SetLocked(bool locked);
-    bool ForegroundIsGame();  // hook thread only (cached)
-    bool Handle(int key, bool down);  // hook thread
+    bool ForegroundIsGame();         // hook thread only (cached)
+    bool Handle(int key, bool down); // hook thread
 
-private:
-    struct Compiled {
+  private:
+    struct Compiled
+    {
         int id = 0;
         std::wstring name;
         int trigger = 0;
         std::vector<Step> press, release;
         int holdMs = 0, stepDelay = 0, repeatDelay = 1;
         bool repeat = false, toggle = false, block = false;
-        bool editKind = false;  // edit/build macro, stuck-edit guard applies
+        bool editKind = false; // edit/build macro, stuck-edit guard applies
         std::wstring sig;
     };
-    struct Run {
+    struct Run
+    {
         std::shared_ptr<const Compiled> c;
         HANDLE cancel = nullptr;
-        ~Run() {
-            if (cancel) CloseHandle(cancel);
+        ~Run()
+        {
+            if (cancel)
+                CloseHandle(cancel);
         }
     };
 
     void HookThread();
-    void StartLocked(const std::shared_ptr<const Compiled>& c);
+    void StartLocked(const std::shared_ptr<const Compiled> &c);
     void ReleaseLocked(int id);
     void ReleaseAllLocked();
     void Worker(std::shared_ptr<Run> r);
-    void RunSteps(const std::vector<Step>& steps, const Compiled& c);
-    void MaybeEditReset();  // worker thread
+    void RunSteps(const std::vector<Step> &steps, const Compiled &c);
+    void MaybeEditReset(); // worker thread
     void Post(EngineMsg m);
 
     std::mutex mu_;
     std::condition_variable idle_;
     std::map<int, std::vector<std::shared_ptr<const Compiled>>> index_;
     std::vector<int> held_;
-    std::unordered_map<int, std::shared_ptr<Run>> running_;  // started, not yet released
-    std::unordered_map<int, std::shared_ptr<Run>> active_;   // until release steps finish
+    std::unordered_map<int, std::shared_ptr<Run>> running_; // started, not yet released
+    std::unordered_map<int, std::shared_ptr<Run>> active_;  // until release steps finish
     std::vector<EngineMsg> msgs_;
     std::vector<InputEvent> rec_;
     long long recStart_ = 0;
@@ -118,19 +146,19 @@ private:
     std::atomic<bool> recording_{false};
     std::atomic<bool> typing_{false};
     std::atomic<bool> locked_{false};
-    std::atomic<bool> humanize_{false};  // frame better jitter
+    std::atomic<bool> humanize_{false}; // frame better jitter
     std::atomic<bool> onlyInGame_{false};
-    std::atomic<bool> editGuard_{false};        // stuck edit auto reset
-    std::atomic<int> editResetVk_{'G'};         // key tapped to leave edit mode
-    std::atomic<bool> editKeyCheck_{false};     // throttle rapid edit/build fires
-    std::atomic<long long> lastEditMs_{0};      // ms, for the throttle
-    HWND lastFg_ = nullptr;  // hook thread only
+    std::atomic<bool> editGuard_{false};    // stuck edit auto reset
+    std::atomic<int> editResetVk_{'G'};     // key tapped to leave edit mode
+    std::atomic<bool> editKeyCheck_{false}; // throttle rapid edit/build fires
+    std::atomic<long long> lastEditMs_{0};  // ms, for the throttle
+    HWND lastFg_ = nullptr;                 // hook thread only
     bool lastFgGame_ = false;
     std::atomic<HWND> mainWnd_{nullptr};
     std::atomic<int> toggleVk_{VK_F8};
-    std::atomic<int> menuVk_{0};  // 0 = in-game menu off
+    std::atomic<int> menuVk_{0}; // 0 = in-game menu off
     std::atomic<bool> sound_{true};
-    std::atomic<int> timing_{0};  // 0 frame, 1 ping, 2 zero, 3 per macro
+    std::atomic<int> timing_{0}; // 0 frame, 1 ping, 2 zero, 3 per macro
 
     HWND notify_ = nullptr;
     UINT notifyMsg_ = 0;
