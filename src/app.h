@@ -12,6 +12,7 @@ constexpr UINT WM_APP_ENGINE = WM_APP + 1;
 constexpr UINT WM_APP_TESTER = WM_APP + 2;
 constexpr UINT WM_APP_MONITOR = WM_APP + 3;
 constexpr UINT WM_APP_TASK = WM_APP + 4;
+constexpr UINT WM_APP_MENU = WM_APP + 5;  // wParam = macro id clicked in the in-game menu
 
 constexpr float kSideOpen = 256.f;
 constexpr float kSideClosed = 76.f;
@@ -49,6 +50,7 @@ public:
     void OnTester();
     void OnMonitor() {}
     void OnTasks();
+    void OnMenu(int id);
     void OnActivate(bool active);
     int HitTest(float x, float y);
     std::wstring StartupWarning;

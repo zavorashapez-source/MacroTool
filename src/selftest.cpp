@@ -38,6 +38,24 @@ int RunSelfTest(const std::wstring& reportPath) {
     for (auto bad : {L"Nope", L"{Missing}", L"V sideways", L"wait", L"wait x", L"42", L"wait 999999", L"V down now"})
         check(throws([&] { ParseSteps(bad, b); }), (L"rejects '" + std::wstring(bad) + L"'").c_str());
     check(ParseSteps(L" A ,\r\n B ,, ", b).size() == 2, L"blank entries and CRLF are ignored");
+    {
+        auto adapt = [&](const wchar_t* p, const wchar_t* r = L"") {
+            auto ps = ParseSteps(p, b), rs = ParseSteps(r, b);
+            AdaptForEditOnRelease(ps, rs, 'G');
+            return std::make_pair(ps, rs);
+        };
+        check(adapt(L"{Edit}, LButton down, wait 5, LButton up, {Edit}").first ==
+                  ParseSteps(L"{Edit}, LButton down, wait 5, LButton up", b),
+              L"edit on release drops the confirm tap");
+        check(adapt(L"{Edit}, RButton down, wait 5, RButton up, {Edit}").first ==
+                  ParseSteps(L"{Edit}, RButton down, wait 5, RButton up", b),
+              L"reset on release drops the confirm tap");
+        check(adapt(L"{Edit}, LButton down", L"LButton up, {Edit}").second == ParseSteps(L"LButton up", b),
+              L"edit on release carries edit mode into release steps");
+        check(adapt(L"{Wall}, LButton, {Edit}, LButton down, wait 5, LButton up, {Edit}").first ==
+                  ParseSteps(L"{Wall}, LButton, {Edit}, LButton down, wait 5, LButton up", b),
+              L"edit on release keeps the tap that opens edit mode");
+    }
 
     bool defaultsOk = true;
     for (auto& m : c.macros) {

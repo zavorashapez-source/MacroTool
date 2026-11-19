@@ -146,8 +146,6 @@ Config Config::Defaults() {
     m = M(L"Editing", L"Single Edit", L"{Edit}, LButton down, wait 5, LButton up, {Edit}"); m.stepDelay = 50; v.push_back(m);
     m = M(L"Editing", L"Drag Edit", L"{Edit}, LButton down"); m.releaseSteps = L"LButton up, {Edit}";
     m.holdMs = 5; m.stepDelay = 10; v.push_back(m);
-    m = M(L"Editing", L"Drag Edit (Confirm on Release)", L"{Edit}, LButton down"); m.releaseSteps = L"LButton up";
-    m.holdMs = 5; m.stepDelay = 10; v.push_back(m);
     m = M(L"Editing", L"Edit Reset", L"{Edit}, RButton down, wait 5, RButton up, {Edit}"); m.stepDelay = 50; v.push_back(m);
     // Hold the click across a frame so the edit tile actually gets selected.
     m = M(L"Editing", L"Edit Spam", L"{Edit}, LButton down, wait 5, LButton up, {Edit}"); m.repeat = true; m.repeatDelay = 15;
@@ -278,6 +276,9 @@ Config FromJson(const Value& v) {
     GetBool(v, "TutorialDone", c.tutorialDone);
     GetBool(v, "OnlyInGame", c.onlyInGame);
     GetBool(v, "Osd", c.osd);
+    GetBool(v, "Menu", c.menu);
+    GetStr(v, "MenuKey", c.menuKey);
+    GetBool(v, "EditOnRelease", c.editOnRelease);
     GetBool(v, "EditGuard", c.editGuard);
     GetStr(v, "EditResetKey", c.editResetKey);
     GetBool(v, "EditKeyCheck", c.editKeyCheck);
@@ -314,6 +315,9 @@ Value ToJson(const Config& c) {
     v.Set("TutorialDone", Value::Boolean(c.tutorialDone));
     v.Set("OnlyInGame", Value::Boolean(c.onlyInGame));
     v.Set("Osd", Value::Boolean(c.osd));
+    v.Set("Menu", Value::Boolean(c.menu));
+    v.Set("MenuKey", Value::String(Narrow(c.menuKey)));
+    v.Set("EditOnRelease", Value::Boolean(c.editOnRelease));
     v.Set("EditGuard", Value::Boolean(c.editGuard));
     v.Set("EditResetKey", Value::String(Narrow(c.editResetKey)));
     v.Set("EditKeyCheck", Value::Boolean(c.editKeyCheck));
@@ -395,6 +399,23 @@ Config Config::Load(std::wstring* warning) {
                 m.steps = L"{Pickaxe}, LButton, wait 200, {Pickaxe}, {" + p + L"}, LButton";
         }
     }
+    // The built-in "Drag Edit (Confirm on Release)" is now plain Drag Edit plus the Edit/reset on
+    // release setting. Someone who used it gets that setting, and its key if Drag Edit was off.
+    auto named = [&](const wchar_t* n) { return std::find_if(ms.begin(), ms.end(), [&](auto& m) { return m.name == n; }); };
+    if (auto old = named(L"Drag Edit (Confirm on Release)");
+        old != ms.end() && old->steps == L"{Edit}, LButton down" && old->releaseSteps == L"LButton up") {
+        if (old->enabled) c.editOnRelease = true;
+        if (auto drag = named(L"Drag Edit"); drag == ms.end()) {
+            old->name = L"Drag Edit";
+            old->releaseSteps = L"LButton up, {Edit}";
+        } else {
+            if (old->enabled && !drag->enabled) {
+                drag->trigger = old->trigger;
+                drag->enabled = true;
+            }
+            ms.erase(old);
+        }
+    }
     Config d = Defaults();
     c.Normalize();
     for (auto& dm : d.macros) {
@@ -437,6 +458,32 @@ bool Config::Save() const { return SaveTo(FilePath()); }
 std::string MacroToJson(const Macro& m) { return json::Write(MacroValue(m), false); }
 
 // ---------------------------------------------------------------- steps
+
+void AdaptForEditOnRelease(std::vector<Step>& press, std::vector<Step>& release, int editVk) {
+    bool editing = false, finished = false;  // carried from press into release (Drag Edit)
+    for (auto* list : {&press, &release}) {
+        std::vector<Step> out;
+        for (auto& s : *list) {
+            if (s.kind == L'w') {
+                out.push_back(s);
+                continue;
+            }
+            bool editTap = s.key == editVk && s.kind == L't';
+            if (editTap && finished) {
+                finished = false;
+                continue;
+            }
+            finished = false;
+            if (editTap) editing = !editing;
+            else if (editing && (s.kind == L'u' || s.kind == L't') && (s.key == VK_LBUTTON || s.key == VK_RBUTTON)) {
+                editing = false;
+                finished = true;
+            }
+            out.push_back(s);
+        }
+        *list = std::move(out);
+    }
+}
 
 int ParseKey(std::wstring name, const Binds& binds) {
     if (name.size() >= 2 && name.front() == L'{' && name.back() == L'}') {

@@ -1,5 +1,6 @@
 #include "app.h"
 #include "monitor.h"
+#include "menu.h"
 #include "osd.h"
 #include <commdlg.h>
 #include <dwmapi.h>
@@ -62,6 +63,28 @@ void App::Shutdown() {
         engine_.Shutdown();
         Monitor::Shutdown();
     }
+}
+
+// One column per category that has macros, in sidebar order.
+static std::vector<Menu::Column> MenuColumns(const Config& cfg) {
+    std::vector<Menu::Column> cols;
+    for (auto& cat : kCategories) {
+        Menu::Column col{cat.name, cat.glyph, {}};
+        for (auto& m : cfg.macros)
+            if (m.category == cat.name)
+                col.items.push_back({m.id, m.name, m.trigger.empty() ? L"" : KeyLabel(m.trigger), m.enabled});
+        if (!col.items.empty()) cols.push_back(std::move(col));
+    }
+    return cols;
+}
+
+void App::OnMenu(int id) {
+    if (id == 0) SetMaster(!cfg_.enabled);
+    else if (Macro* m = FindMacro(id)) {
+        m->enabled = !m->enabled;
+        Changed();
+    }
+    Menu::Update(MenuColumns(cfg_), cfg_.enabled);
 }
 
 void App::SaveCfg() {
@@ -219,6 +242,11 @@ void App::OnEngine() {
                 SaveCfg();
                 if (!cfg_.enabled) running_.clear();
                 Osd::Flash(cfg_.enabled);  // brief in-game on/off popup
+                Menu::Update(MenuColumns(cfg_), cfg_.enabled);
+                break;
+            case EngineMsg::Menu:
+                if (Menu::IsOpen()) Menu::Hide();
+                else Menu::Show(MenuColumns(cfg_), cfg_.enabled);
                 break;
             case EngineMsg::Captured:
                 if (cap_.kind != Capture::None && m.token == cap_.token) ApplyCapture(m.key);

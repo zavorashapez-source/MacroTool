@@ -1,5 +1,6 @@
 #include "app.h"
 #include "monitor.h"
+#include "menu.h"
 #include "osd.h"
 #include <shellapi.h>
 #include <algorithm>
@@ -903,7 +904,7 @@ void App::PageSettings(const Rect& area) {
     ui.PushAlpha(t);
     ui.PushOffset(0, 16 * (1 - t));
     section(L"GENERAL");
-    Rect gen{area.x, y, area.w, 6 * 70.f};
+    Rect gen{area.x, y, area.w, 8 * 70.f};
     g.Round(gen, 14, T.panel);
     g.RoundStroke(gen, 14, T.border);
     auto row = [&](int i, const wchar_t* title, const std::wstring& desc) {
@@ -957,6 +958,21 @@ void App::PageSettings(const Rect& area) {
     if (ui.Switch(HashId(L"animations"), r6.R() - 20 - 40, r6.Cy() - 11, anim)) {
         cfg_.animations = anim;
         ui.reduceMotion = !anim;
+        Changed();
+    }
+    Rect r7 = row(6, L"In-game menu",
+                  Pretty(cfg_.menuKey) + L" opens a clickable menu over the game to switch macros. Needs borderless/windowed.");
+    bool mn = cfg_.menu;
+    if (ui.Switch(HashId(L"menu"), r7.R() - 20 - 40, r7.Cy() - 11, mn)) {
+        cfg_.menu = mn;
+        if (!mn) Menu::Hide();
+        Changed();
+    }
+    Rect r8 = row(7, L"Edit / reset on release",
+                  L"Turn on if Fortnite has Edit and Reset on release on. Edit macros skip the confirm press.");
+    bool eor = cfg_.editOnRelease;
+    if (ui.Switch(HashId(L"editonrelease"), r8.R() - 20 - 40, r8.Cy() - 11, eor)) {
+        cfg_.editOnRelease = eor;
         Changed();
     }
 

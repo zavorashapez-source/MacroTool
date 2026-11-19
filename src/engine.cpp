@@ -327,6 +327,7 @@ static std::wstring Sig(const std::vector<Step>& steps) {
 void Engine::Reindex(const Config& cfg) {
     int tk;
     toggleVk_ = KeyParse(cfg.toggleKey, tk) ? tk : VK_F8;
+    menuVk_ = cfg.menu && KeyParse(cfg.menuKey, tk) ? tk : 0;
     sound_ = cfg.toggleSound;
     onlyInGame_ = cfg.onlyInGame;
     editGuard_ = cfg.editGuard;
@@ -335,6 +336,12 @@ void Engine::Reindex(const Config& cfg) {
     editResetVk_ = KeyParse(cfg.editResetKey, ek) ? ek : 'G';
     timing_ = 0;  // only frame timing remains
     humanize_ = cfg.timing == L"FrameHuman";
+
+    int editVk = 0;
+    if (cfg.editOnRelease) try {
+            editVk = ParseKey(L"{Edit}", cfg.binds);
+        } catch (const FormatError&) {
+        }
 
     std::map<int, std::vector<std::shared_ptr<const Compiled>>> idx;
     std::unordered_map<int, std::shared_ptr<const Compiled>> byId;
@@ -348,6 +355,7 @@ void Engine::Reindex(const Config& cfg) {
             c->trigger = k;
             c->press = ParseSteps(m.steps, cfg.binds);
             c->release = ParseSteps(m.releaseSteps, cfg.binds);
+            if (editVk) AdaptForEditOnRelease(c->press, c->release, editVk);
             c->holdMs = m.holdMs;
             c->stepDelay = m.stepDelay;
             c->repeatDelay = std::max(1, m.repeatDelay);
@@ -500,6 +508,16 @@ bool Engine::Handle(int k, bool down) {
             Post({EngineMsg::Toggled});
         }
         return true;
+    }
+    // The menu key works with macros off too (the menu can switch them on). Outside the game
+    // and our own windows it stays a normal key.
+    if (menuVk_ && k == menuVk_) {
+        DWORD pid = 0;
+        GetWindowThreadProcessId(GetForegroundWindow(), &pid);
+        if (!onlyInGame_ || pid == GetCurrentProcessId() || ForegroundIsGame()) {
+            if (down && !repeatPress) Post({EngineMsg::Menu});
+            return true;
+        }
     }
     if (!enabled_) return false;
     if (typing_ && GetForegroundWindow() == mainWnd_.load()) return false;

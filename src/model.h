@@ -57,6 +57,9 @@ struct Config {
     bool tutorialDone = false;
     bool onlyInGame = true;  // only fire while Fortnite is the focused window
     bool osd = true;         // show a brief on/off popup over the game when toggled
+    bool menu = true;        // in-game click menu on menuKey
+    std::wstring menuKey = L"Insert";
+    bool editOnRelease = false;  // matches Fortnite's "Edit/Reset on release"; macros adapt
     // After an edit/build macro ends, if the screen centre still shows the blue edit
     // overlay the macro got stuck in edit mode, so tap the reset key to drop out.
     bool editGuard = false;
@@ -99,6 +102,9 @@ struct Step {
 
 std::vector<Step> ParseSteps(std::wstring_view text, const Binds& binds);  // throws FormatError
 int ParseKey(std::wstring name, const Binds& binds);  // throws FormatError
+// With Fortnite's "Edit/Reset on release" the mouse release already finishes the edit, so the
+// {Edit} tap a macro uses to confirm would reopen edit mode. Drops that tap from press + release.
+void AdaptForEditOnRelease(std::vector<Step>& press, std::vector<Step>& release, int editVk);
 
 struct InputEvent {
     int key = 0;  // kMouseMove for movement

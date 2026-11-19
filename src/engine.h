@@ -34,7 +34,7 @@ std::vector<TesterEvent> Drain();
 }  // namespace Tester
 
 struct EngineMsg {
-    enum Type { Fired, Stopped, Toggled, Captured, CaptureCanceled, RecordStopped } type;
+    enum Type { Fired, Stopped, Toggled, Menu, Captured, CaptureCanceled, RecordStopped } type;
     int macroId = 0;
     int key = 0;
     int token = 0;
@@ -129,6 +129,7 @@ private:
     bool lastFgGame_ = false;
     std::atomic<HWND> mainWnd_{nullptr};
     std::atomic<int> toggleVk_{VK_F8};
+    std::atomic<int> menuVk_{0};  // 0 = in-game menu off
     std::atomic<bool> sound_{true};
     std::atomic<int> timing_{0};  // 0 frame, 1 ping, 2 zero, 3 per macro
 

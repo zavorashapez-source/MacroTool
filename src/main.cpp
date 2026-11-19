@@ -1,5 +1,6 @@
 #include "app.h"
 #include "license.h"
+#include "menu.h"
 #include "osd.h"
 #include <dwmapi.h>
 #include <shellapi.h>
@@ -217,6 +218,7 @@ LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM w, LPARAM l) {
         case WM_APP_TESTER: gApp->OnTester(); gNeedFrame = true; return 0;
         case WM_APP_MONITOR: gNeedFrame = true; return 0;
         case WM_APP_TASK: gApp->OnTasks(); gNeedFrame = true; return 0;
+        case WM_APP_MENU: gApp->OnMenu((int)w); gNeedFrame = true; return 0;
         case WM_SETTINGCHANGE: {
             BOOL anim = TRUE;
             SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &anim, 0);
@@ -227,6 +229,7 @@ LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM w, LPARAM l) {
         case WM_CLOSE: DestroyWindow(h); return 0;
         case WM_DESTROY:
             Osd::Shutdown();
+            Menu::Shutdown();
             gApp->Shutdown();
             PostQuitMessage(0);
             return 0;
@@ -339,6 +342,16 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, LPWSTR, int show) {
     // --osd-png <on|off> <path>: renders the toggle popup to a PNG for a look.
     if (argc >= 4 && std::wstring(argv[1]) == L"--osd-png")
         return Osd::RenderPng(std::wstring(argv[2]) == L"on", argv[3]) ? 0 : 1;
+    // --menu-png <path>: renders the in-game menu with sample macros.
+    if (argc >= 3 && std::wstring(argv[1]) == L"--menu-png") {
+        std::vector<Menu::Column> cols = {
+            {kCategories[0].name, kCategories[0].glyph, {{1, L"Fast Edit", L"Mouse 5", true}, {2, L"Reset Edit", L"F", false}}},
+            {kCategories[1].name, kCategories[1].glyph,
+             {{3, L"Wall + Ramp", L"Q", true}, {4, L"Cone Spam", L"E", true}, {5, L"Floor Ramp Wall", L"", false}}},
+            {kCategories[2].name, kCategories[2].glyph, {{6, L"Crouch Spam", L"C", false}}},
+            {kCategories[3].name, kCategories[3].glyph, {{7, L"Ping", L"Mouse 4", true}}}};
+        return Menu::RenderPng(cols, true, argv[2]) ? 0 : 1;
+    }
     // --checksig <timestamp> <signature hex> <body file>: checks a saved KeyAuth response.
     if (argc >= 5 && std::wstring(argv[1]) == L"--checksig") {
         std::string body;
@@ -398,6 +411,7 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, LPWSTR, int show) {
     gDpi = GetDpiForWindow(h);
     g->SetDpi((float)gDpi);
     Osd::Init();
+    Menu::Init(h, WM_APP_MENU);
     app->Init(h, false);
 
     // Show the first frame fully drawn instead of flashing an empty window.
