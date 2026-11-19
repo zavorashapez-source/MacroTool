@@ -12,7 +12,7 @@ constexpr UINT WM_APP_ENGINE = WM_APP + 1;
 constexpr UINT WM_APP_TESTER = WM_APP + 2;
 constexpr UINT WM_APP_MONITOR = WM_APP + 3;
 constexpr UINT WM_APP_TASK = WM_APP + 4;
-constexpr UINT WM_APP_MENU = WM_APP + 5;  // wParam = macro id clicked in the in-game menu
+constexpr UINT WM_APP_MENU = WM_APP + 5;  // wParam = macro id (menu click)
 
 constexpr float kSideOpen = 256.f;
 constexpr float kSideClosed = 76.f;
@@ -25,7 +25,7 @@ double NowSeconds();
 std::wstring StatsDayKey(int daysAgo);
 std::wstring StatsHourKey(int hoursAgo);
 
-// How often macros fired, kept in stats.json next to the exe.
+// fire counts, saved to stats.json
 struct Stats {
     std::map<std::wstring, int> days;   // "2026-10-27"
     std::map<std::wstring, int> hours;  // "2026-10-27 14"
@@ -41,7 +41,7 @@ class App {
 public:
     App(Gfx& g, UI& ui) : g(g), ui(ui) {}
 
-    // preview = render-only (screenshots): no hooks, no threads, nothing saved.
+    // preview: render only (for --shot), no hooks/threads/saving
     void Init(HWND hwnd, bool preview);
     void Shutdown();
     void Frame(float W, float H);
@@ -55,7 +55,7 @@ public:
     int HitTest(float x, float y);
     std::wstring StartupWarning;
 
-    // Preview helpers used by --shot.
+    // --shot helpers
     void Navigate(const std::wstring& page);
     void OpenEditor(int macroId);
     void PreviewSetup(const std::wstring& scenario);
@@ -240,7 +240,7 @@ private:
     bool active_ = true;
     float W_ = 0, H_ = 0;
     float sideW_ = kSideOpen;
-    std::vector<Rect> holes_;  // interactive spots inside the draggable title area
+    std::vector<Rect> holes_;  // clickable bits inside the drag area
 
     Config cfg_;
     Engine engine_;
@@ -280,8 +280,8 @@ private:
     bool tweaksLoading_ = false;
     bool tweaksLoaded_ = false;
 
-    double splashAt_ = -1;   // startup welcome splash start time
-    int tutorialStep_ = -1;  // -1 = not showing; first-run walkthrough
+    double splashAt_ = -1;   // splash start
+    int tutorialStep_ = -1;  // first run tutorial, -1 = off
     bool licensed_ = false;
     bool licBusy_ = false;
     std::wstring licKey_, licError_;

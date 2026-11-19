@@ -88,7 +88,7 @@ public:
     void Polygon(const D2D1_POINT_2F* pts, int n, Color c);
     void PolygonGrad(const D2D1_POINT_2F* pts, int n, const Rect& box, Color a, Color b);
     void Shadow(const Rect& r, float rad, float size, float alpha, float dy = 0);
-    // Charts: a smooth curve through the points, and the area under it down to baseY.
+    // chart curve + filled area down to baseY
     void SmoothLine(const std::vector<D2D1_POINT_2F>& p, Color c, float w);
     void SmoothArea(const std::vector<D2D1_POINT_2F>& p, float baseY, Color top, Color bottom);
 
@@ -98,7 +98,7 @@ public:
     float TextH(std::wstring_view s, F f, float maxW);
     IDWriteTextLayout* Layout(std::wstring_view s, F f, float maxW, float maxH, int align, bool vcenter, bool wrap,
                               bool spans = false);
-    // Font used for a given role; text boxes need it for their own layouts.
+    // text boxes build their own layouts
     IDWriteTextFormat* Format(F f) { return fmt_[(int)f]; }
     void DrawLayout(IDWriteTextLayout* l, float x, float y, Color c);
     void ApplySpans(IDWriteTextLayout* l, const Span* spans, size_t n);
@@ -107,7 +107,7 @@ public:
     void PopClip();
     void SetTransform(const D2D1_MATRIX_3X2_F& m);
 
-    // Renders into an offscreen copy so the scene behind a dialog can be blurred.
+    // offscreen layer, used to blur behind dialogs
     bool BeginLayer();
     ID2D1Bitmap* EndLayer();
     void DrawBlurred(ID2D1Bitmap* bmp, float amount);

@@ -252,7 +252,7 @@ void Shutdown() {
     if (!worker.joinable()) return;
     quit = true;
     SetEvent(wake);
-    // A ping may be in flight; don't hold up closing the app for it.
+    // don't wait for a ping in flight on exit
     worker.detach();
 }
 

@@ -21,7 +21,7 @@ double flashStart = 0;
 
 double Now() { return QpcToMs(QpcNow()); }
 
-// Draws the pill into the WIC bitmap, then copies its premultiplied BGRA into the DIB.
+// draw the pill, copy into the dib
 bool RenderInto(bool on) {
     if (!g || !wic) return false;
     if (!g->BindWic(wic, (float)pxW / kLogW * 96.f)) return false;
@@ -39,7 +39,7 @@ bool RenderInto(bool on) {
     bool ok = g->End();
     g->ReleaseTarget();
     if (!ok || !dibBits) return false;
-    // WIC 32bppPBGRA and the top-down DIB share byte order, so copy straight across.
+    // same byte order, straight copy
     UINT stride = pxW * 4;
     wic->CopyPixels(nullptr, stride, stride * pxH, (BYTE*)dibBits);
     return true;

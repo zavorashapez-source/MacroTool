@@ -2,15 +2,15 @@
 #include "util.h"
 #include <utility>
 
-// Virtual-key codes 14/15 are unassigned in Windows; the app uses them for the wheel.
+// vk 14/15 are unused by windows, we use them for the wheel
 constexpr int kWheelUp = 14;
 constexpr int kWheelDown = 15;
-// Pseudo key for relative mouse movement in recordings and the tester feed.
+// fake key for relative mouse moves
 constexpr int kMouseMove = -1;
 
 std::wstring KeyName(int vk);
 bool KeyParse(std::wstring_view s, int& vk);
-// Short human label ("XButton2" -> "Mouse 5").
+// "XButton2" -> "Mouse 5"
 std::wstring Pretty(std::wstring_view name);
 std::wstring KeyLabel(std::wstring_view trigger);
 
@@ -52,20 +52,19 @@ struct Config {
     std::wstring maxPowerScheme;
     std::vector<std::wstring> knownDefaults;
     std::wstring theme = L"Dark";
-    bool animations = true;  // force UI animations on even if Windows "reduce motion" is set
+    bool animations = true;  // ignore windows reduce motion
     bool sidebarCollapsed = false;
     bool tutorialDone = false;
     bool onlyInGame = true;  // only fire while Fortnite is the focused window
     bool osd = true;         // show a brief on/off popup over the game when toggled
     bool menu = true;        // in-game click menu on menuKey
     std::wstring menuKey = L"Insert";
-    bool editOnRelease = false;  // matches Fortnite's "Edit/Reset on release"; macros adapt
-    // After an edit/build macro ends, if the screen centre still shows the blue edit
-    // overlay the macro got stuck in edit mode, so tap the reset key to drop out.
+    bool editOnRelease = false;  // fortnite edit/reset on release
+    // edit fix: after an edit/build macro, if the crosshair still shows the blue edit
+    // overlay we're stuck, tap reset.
     bool editGuard = false;
     std::wstring editResetKey = L"G";
-    // Spaces out rapid edit/build fires so a spammed macro can't outrun the game and
-    // jam in edit mode (prevention; works alongside editGuard's recovery).
+    // min gap between edit/build fires so spam can't jam edit mode
     bool editKeyCheck = false;
     Binds binds;
     std::vector<Macro> macros;
@@ -73,19 +72,18 @@ struct Config {
     static Config Defaults();
     static std::wstring FilePath();
     static std::wstring ProfileDir();
-    // Loads macros.json next to the exe. A corrupt file is moved to macros.json.bad and
-    // `warning` explains it.
+    // macros.json next to the exe. broken file gets renamed to .bad, `warning` says why
     static Config Load(std::wstring* warning);
     static bool LoadFile(const std::wstring& path, Config& out, std::wstring* err);
     bool SaveTo(const std::wstring& path) const;
     bool Save() const;
 
-    // Gives category-less macros a home and adds binds introduced by newer versions.
+    // fixes missing categories, adds new binds
     void Normalize();
     void AssignIds();
 };
 
-// Screenshot/preview runs must never touch the user's files.
+// --shot must not touch real files
 void SetConfigReadOnly(bool readOnly);
 
 std::string MacroToJson(const Macro& m);
@@ -102,8 +100,8 @@ struct Step {
 
 std::vector<Step> ParseSteps(std::wstring_view text, const Binds& binds);  // throws FormatError
 int ParseKey(std::wstring name, const Binds& binds);  // throws FormatError
-// With Fortnite's "Edit/Reset on release" the mouse release already finishes the edit, so the
-// {Edit} tap a macro uses to confirm would reopen edit mode. Drops that tap from press + release.
+// edit/reset on release: letting go of the mouse already ends the edit, so drop the
+// confirm {Edit} tap (it would just reopen edit)
 void AdaptForEditOnRelease(std::vector<Step>& press, std::vector<Step>& release, int editVk);
 
 struct InputEvent {
@@ -119,7 +117,7 @@ std::wstring RecorderToSteps(const std::vector<InputEvent>& ev, const Binds& bin
 std::wstring ShareExport(const Macro& m);
 Macro ShareImport(std::wstring code);  // throws FormatError
 
-// A whole-setup share code: all macros plus the game binds, as one string.
+// whole setup code (macros + binds)
 struct MacroPack {
     std::vector<Macro> macros;
     Binds binds;
@@ -128,7 +126,7 @@ std::wstring PackExport(const std::vector<Macro>& macros, const Binds& binds);
 MacroPack PackImport(std::wstring code);  // throws FormatError
 bool IsPackCode(const std::wstring& code);
 
-// Token ranges for syntax colouring in step editors.
+// for syntax colouring
 struct StepToken {
     size_t start, len;
     int kind;  // 0 key, 1 bind, 2 wait, 3 down/up, 4 error, 5 mouse move

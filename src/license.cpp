@@ -9,8 +9,7 @@
 
 namespace {
 
-// Free build: KeyAuth is not used, so these are empty. For a licensed build, fill in
-// the app name, owner ID, URL and the server's public key.
+// empty in the free build. for keyauth fill in app name, owner id, url and public key.
 std::string AppName() { return ""; }
 std::string Owner() { return ""; }
 std::string Version() { return "1.0"; }
@@ -145,7 +144,7 @@ std::string ExeMd5() {
 
 std::wstring KeyPath() { return PathJoin(ExeDir(), L"license.dat"); }
 
-// Sends one request and returns its JSON only if KeyAuth signed it.
+// returns the json only if the signature checks out
 bool Call(const std::string& form, json::Value& out, std::wstring& error) {
     Http h = Post(ApiUrl(), form);
     if (!h.ok) {
@@ -185,8 +184,7 @@ namespace License {
 bool Configured() { return !AppName().empty() && Owner().size() == 10; }
 
 std::wstring Hwid() {
-    // The user's SID (what the KeyAuth SDK sends) plus the Windows install's machine GUID,
-    // hashed: a key stays on this PC and this Windows account.
+    // hwid = user SID + machine guid, hashed
     std::string sid;
     HANDLE token = nullptr;
     if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) {

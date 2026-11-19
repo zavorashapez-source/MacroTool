@@ -1,4 +1,4 @@
-// Dashboard page and the usage stats behind it.
+// dashboard + stats
 #include "app.h"
 #include "json.h"
 #include "monitor.h"
@@ -80,7 +80,7 @@ static std::wstring Compact(double n) {
 
 // ---------------------------------------------------------------- shared helpers
 
-// Overview tile: label, big value, one short line. The first and last get the pale highlighted look.
+// stat tile, first and last are highlighted
 void App::StatCard(const Rect& r, const wchar_t* glyph, Color c, const std::wstring& label, const std::wstring& value,
                    const std::wstring& delta, Color deltaC, int i) {
     bool hi = i == 0 || i == 3;
@@ -97,7 +97,7 @@ void App::StatCard(const Rect& r, const wchar_t* glyph, Color c, const std::wstr
     g.Round(r, 14, hi ? T.primary : Mix(T.panel, T.panel2, 0.5f * it.hoverT));
     if (!hi) g.RoundStroke(r, 14, Mix(T.border, T.border2, it.hoverT));
     g.Fill({r.x + 14, r.y + 1, r.w - 28, 1}, WithA(hi ? T.onPrimary : T.text, hi ? 0.12f : 0.05f));
-    // Faint decorative glyph watermark in the corner.
+    // corner glyph
     if (glyph) {
         ui.PushClip(r);
         g.Text(glyph, {r.R() - 74, r.y + 8, 72, 72}, WithA(hi ? T.onPrimary : c, hi ? 0.10f : 0.09f), F::IconXl);
@@ -233,7 +233,7 @@ void App::PageDashboard(const Rect& area) {
         }
         ui.PushClip({plot.x - 4, plot.y - 8, (plot.w + 8) * std::max(0.02f, grow), plot.h + 10});
         g.SmoothArea(pts, plot.B(), WithA(T.accent, 0.26f), WithA(T.accent, 0.0f));
-        g.SmoothLine(pts, WithA(T.accent, 0.22f), 7.f);  // soft glow halo
+        g.SmoothLine(pts, WithA(T.accent, 0.22f), 7.f);  // glow
         g.SmoothLine(pts, T.accentHi, 2.4f);
         ui.PopClip();
         // hover read-out

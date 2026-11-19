@@ -6,7 +6,7 @@
 namespace Menu {
 namespace {
 
-// Logical layout at 96 dpi.
+// 96 dpi units
 constexpr float kPad = 12, kColW = 176, kGap = 10, kBarH = 40, kHeadH = 36, kRowH = 30;
 const Color kPanel = Rgb(0x1B1E26, 0.97f), kAccent = Rgb(0x3DDC97), kText = Rgb(0xF2F4F8), kDim = Rgb(0x8A93A6);
 
@@ -22,7 +22,7 @@ bool ready = false, open = false, tracking = false;
 
 std::vector<Column> cols;
 bool master = true;
-std::vector<std::pair<Rect, int>> hits;  // logical rect -> macro id (0 = master switch)
+std::vector<std::pair<Rect, int>> hits;  // rect -> id, 0 = master
 int hover = -1;
 
 float LogW() {
@@ -39,7 +39,7 @@ void Draw() {
     hits.clear();
     float W = LogW(), H = LogH();
     g->Clear({0, 0, 0, 0});
-    // Faint backdrop so clicks between the panels land on us, not in the game.
+    // backdrop so clicks between panels don't go to the game
     g->Round({0, 0, W, H}, 16, Rgb(0x0B0C10, 0.55f));
 
     Rect bar{kPad, kPad, W - 2 * kPad, kBarH};
@@ -102,7 +102,7 @@ void EnsureSized() {
     if (g && g->wic) g->wic->CreateBitmap(pxW, pxH, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, &wic);
 }
 
-// Draws into the WIC bitmap, then copies its premultiplied BGRA into the DIB (same byte order).
+// draw to wic, copy into the dib (same pbgra layout)
 bool Render() {
     EnsureSized();
     if (!g || !wic || !g->BindWic(wic, (float)dpi)) return false;
@@ -130,8 +130,8 @@ void Present() {
     ReleaseDC(nullptr, screen);
 }
 
-// Windows only lets the foreground app hand focus away, so borrow the game's input queue for
-// the switch. If that is refused, a synthetic Alt tap (the usual workaround) unlocks it.
+// only the foreground app may give away focus -> attach to the game's input queue.
+// if that still fails, the old alt tap trick.
 void TakeFocus() {
     HWND fg = GetForegroundWindow();
     DWORD me = GetCurrentThreadId(), other = fg ? GetWindowThreadProcessId(fg, nullptr) : 0;
@@ -147,7 +147,7 @@ void TakeFocus() {
         SendInput(2, in, sizeof(INPUT));
         SetForegroundWindow(wnd);
     }
-    ClipCursor(nullptr);  // the game may still have the cursor locked to its window
+    ClipCursor(nullptr);  // game might still have the cursor clipped
 }
 
 int HitAt(LPARAM l) {
@@ -183,7 +183,7 @@ LRESULT CALLBACK Proc(HWND h, UINT m, WPARAM w, LPARAM l) {
             if (w == VK_ESCAPE) Hide();
             return 0;
         case WM_ACTIVATE:
-            // Alt-tabbed or clicked elsewhere: just go away, focus already moved on.
+            // alt-tab / clicked away
             if (LOWORD(w) == WA_INACTIVE && open) {
                 open = false;
                 game = nullptr;
@@ -264,8 +264,8 @@ void Update(const std::vector<Column>& c, bool on) {
 
 void Hide() {
     if (!open) return;
-    open = false;  // first, so the WM_ACTIVATE this causes doesn't re-enter
-    // We are the foreground window right now, so Windows lets us hand focus back.
+    open = false;  // before, so WM_ACTIVATE doesn't re-enter
+    // we're foreground so this is allowed
     if (game && IsWindow(game)) SetForegroundWindow(game);
     game = nullptr;
     ShowWindow(wnd, SW_HIDE);

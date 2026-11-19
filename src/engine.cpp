@@ -4,7 +4,7 @@
 #include <random>
 #include <unordered_set>
 
-// Small per-thread RNG for Frame Better humanization.
+// rng for frame better jitter
 static int RandInt(int lo, int hi) {
     if (hi <= lo) return lo;
     thread_local std::mt19937 rng((unsigned)(QpcNow() ^ (uintptr_t)GetCurrentThreadId()));
@@ -29,8 +29,8 @@ HANDLE ThreadTimer() {
     return tlTimer.h;
 }
 
-// High-resolution sleep (sub-millisecond on Windows 10 1803+). Returns true when `cancel`
-// fired first, so stopping a repeating macro takes effect immediately.
+// hi-res sleep (sub ms on win10 1803+). true if cancel fired first so repeats stop
+// right away
 bool Wait(int ms, HANDLE cancel) {
     if (ms <= 0) return cancel && WaitForSingleObject(cancel, 0) == WAIT_OBJECT_0;
     HANDLE t = ThreadTimer();
@@ -177,7 +177,7 @@ static void Raw(int k, bool down) {
         WORD scan = (WORD)MapVirtualKeyW((UINT)k, MAPVK_VK_TO_VSC);
         in.ki.wVk = (WORD)k;
         in.ki.wScan = scan;
-        // Games read scan codes; keys without one (media keys) fall back to the virtual key.
+        // games want scan codes, media keys etc don't have one
         in.ki.dwFlags = (scan ? KEYEVENTF_SCANCODE : 0) | (down ? 0 : KEYEVENTF_KEYUP) |
                         (Extended(k) ? KEYEVENTF_EXTENDEDKEY : 0);
     }
@@ -202,7 +202,7 @@ void Move(int dx, int dy) {
     Tester::Push(te);
     if (dryRun || (!dx && !dy)) return;
     int biggest = std::max(std::abs(dx), std::abs(dy));
-    // Split big turns into small deltas; some games clamp a single huge delta.
+    // some games clamp big deltas, so split them
     int chunks = std::max(1, (biggest + 199) / 200);
     std::vector<INPUT> ins;
     for (int i = 0; i < chunks; i++) {
@@ -228,8 +228,7 @@ void ReleaseStuck() {
 
 // ---------------------------------------------------------------- engine
 
-// Thread-safe "is Fortnite focused" for worker threads (Engine::ForegroundIsGame
-// caches on members and is hook-thread only).
+// "is fortnite focused" for worker threads (ForegroundIsGame is hook thread only)
 static bool FgIsGame() {
     HWND fg = GetForegroundWindow();
     DWORD pid = 0;
@@ -250,10 +249,9 @@ static bool FgIsGame() {
     return game;
 }
 
-// Reads a small cluster around the crosshair. Fortnite's edit overlay tints the
-// targeted piece a strong cyan-blue; if most samples read that way we're still in
-// edit mode, so tap the reset key once to drop out. One GetPixel burst, no capture
-// kept, no injection — just the user's own screen.
+// sample a few pixels around the crosshair. edit mode tints the piece cyan-blue,
+// if most of them are blue we're stuck -> tap reset once.
+// just GetPixel on our own screen, nothing kept.
 void Engine::MaybeEditReset() {
     if (!enabled_.load() || !FgIsGame()) return;
     HDC dc = GetDC(nullptr);
@@ -261,7 +259,7 @@ void Engine::MaybeEditReset() {
     int cx = GetSystemMetrics(SM_CXSCREEN) / 2;
     int cy = GetSystemMetrics(SM_CYSCREEN) / 2;
     int blue = 0, n = 0;
-    // Ring a little off-centre so the crosshair dot itself doesn't skew it.
+    // skip the crosshair dot itself
     for (int ox = -14; ox <= 14; ox += 7)
         for (int oy = -14; oy <= 14; oy += 7) {
             if (!ox && !oy) continue;
@@ -368,12 +366,12 @@ void Engine::Reindex(const Config& cfg) {
             idx[k].push_back(c);
             byId[m.id] = c;
         } catch (const FormatError&) {
-            // The UI flags the macro; the engine just skips it.
+            // UI shows the error, just skip
         }
     }
     std::lock_guard lk(mu_);
     index_ = std::move(idx);
-    // A macro that was edited, disabled or deleted while running must still let go of its keys.
+    // edited/disabled/deleted while running: still release its keys
     std::vector<int> stale;
     for (auto& [id, r] : running_) {
         auto f = byId.find(id);
@@ -477,7 +475,7 @@ bool Engine::Handle(int k, bool down) {
     if (recording_) {
         long long now = (long long)QpcToMs(QpcNow() - recStart_);
         if (k == VK_ESCAPE) {
-            // Esc finishes the recording from inside the game; the game never sees it.
+            // Esc stops recording, game never sees it
             if (down) {
                 recording_ = false;
                 Post({EngineMsg::RecordStopped});
@@ -509,8 +507,7 @@ bool Engine::Handle(int k, bool down) {
         }
         return true;
     }
-    // The menu key works with macros off too (the menu can switch them on). Outside the game
-    // and our own windows it stays a normal key.
+    // menu key works even with macros off. outside the game it's a normal key
     if (menuVk_ && k == menuVk_) {
         DWORD pid = 0;
         GetWindowThreadProcessId(GetForegroundWindow(), &pid);
@@ -521,7 +518,7 @@ bool Engine::Handle(int k, bool down) {
     }
     if (!enabled_) return false;
     if (typing_ && GetForegroundWindow() == mainWnd_.load()) return false;
-    // Only fire while Fortnite is the active window, so nothing triggers on the desktop.
+    // only in fortnite
     if (onlyInGame_ && !ForegroundIsGame()) return false;
     auto f = index_.find(k);
     if (f == index_.end()) return false;
@@ -562,8 +559,7 @@ void Engine::ReleaseAllLocked() {
     for (int id : ids) ReleaseLocked(id);
 }
 
-// Minimum gap between consecutive edit/build macro fires when Key check is on, so a
-// spammed macro can't outrun the game and jam in edit mode.
+// key check: min gap between edit/build fires
 static constexpr int kEditThrottleMs = 45;
 
 void Engine::Worker(std::shared_ptr<Run> r) {
@@ -580,7 +576,7 @@ void Engine::Worker(std::shared_ptr<Run> r) {
         int rd = humanize_.load() ? RandInt(c.repeatDelay * 85 / 100, c.repeatDelay * 118 / 100) : c.repeatDelay;
         if (!c.repeat || Wait(rd, r->cancel)) break;
     }
-    // The drag/edit is done: if we're stuck in the edit overlay, drop out of it.
+    // done, reset if still stuck in edit
     if (editGuard_.load() && c.editKind) MaybeEditReset();
     WaitForSingleObject(r->cancel, INFINITE);
     RunSteps(c.release, c);
@@ -597,13 +593,13 @@ void Engine::RunSteps(const std::vector<Step>& steps, const Compiled& c) {
     for (size_t i = 0; i < steps.size(); i++) {
         const Step& s = steps[i];
         switch (s.kind) {
-            // Frame Better nudges user waits a touch so they aren't identical every run.
+            // frame better: vary waits a bit
             case L'w': Wait(human ? s.ms + RandInt(0, s.ms / 10 + 2) : s.ms, nullptr); continue;
             case L'd': Input::Send(s.key, true); break;
             case L'u': Input::Send(s.key, false); break;
             case L'm': Input::Move(s.dx, s.dy); break;
             default:
-                // Legacy: instant tap. Better: hold a varied 3-10 ms so it always registers and looks human.
+                // legacy = instant tap, better = hold 3-10ms
                 Input::Send(s.key, true);
                 int hold = human ? RandInt(3, 10) : 0;
                 if (hold > 0) Wait(hold, nullptr);

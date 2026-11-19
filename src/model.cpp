@@ -14,8 +14,8 @@ struct KeyDef {
     std::wstring name;
 };
 
-// Names follow System.Windows.Forms.Keys so configs and share codes from the .NET
-// version keep working. The first entry for a code is the one written out.
+// names = System.Windows.Forms.Keys so old .NET configs/codes still load.
+// first name per code is what gets saved.
 const std::vector<KeyDef>& KeyTable() {
     static const std::vector<KeyDef> table = [] {
         std::vector<KeyDef> t = {
@@ -147,10 +147,10 @@ Config Config::Defaults() {
     m = M(L"Editing", L"Drag Edit", L"{Edit}, LButton down"); m.releaseSteps = L"LButton up, {Edit}";
     m.holdMs = 5; m.stepDelay = 10; v.push_back(m);
     m = M(L"Editing", L"Edit Reset", L"{Edit}, RButton down, wait 5, RButton up, {Edit}"); m.stepDelay = 50; v.push_back(m);
-    // Hold the click across a frame so the edit tile actually gets selected.
+    // hold the click a frame or the tile doesn't get selected
     m = M(L"Editing", L"Edit Spam", L"{Edit}, LButton down, wait 5, LButton up, {Edit}"); m.repeat = true; m.repeatDelay = 15;
     m.stepDelay = 50; v.push_back(m);
-    // Retakes: one pickaxe hit on the piece, then place your own.
+    // retakes: pickaxe hit, then place
     v.push_back(M(L"Building", L"Wall Retake", L"{Pickaxe}, LButton, wait 200, {Pickaxe}, {Wall}, LButton"));
     v.push_back(M(L"Building", L"Floor Retake", L"{Pickaxe}, LButton, wait 200, {Pickaxe}, {Floor}, LButton"));
     v.push_back(M(L"Building", L"Stair Retake", L"{Pickaxe}, LButton, wait 200, {Pickaxe}, {Stair}, LButton"));
@@ -174,7 +174,7 @@ Config Config::Defaults() {
     m = M(L"Utility", L"Fast Pickup", L"{Use}"); m.repeat = true; m.repeatDelay = 20; v.push_back(m);
     v.push_back(M(L"Utility", L"Pickaxe Swap", L"{Pickaxe}, {Slot1}"));
     v.push_back(M(L"Utility", L"Trap Place", L"{Trap}, LButton"));
-    // Piece-control and push combos: key + click only, so frame sync lands each step clean.
+    // piece control / push combos
     v.push_back(M(L"Building", L"Wall + Cone", L"{Wall}, LButton, {Cone}, LButton"));
     v.push_back(M(L"Building", L"Floor + Cone", L"{Floor}, LButton, {Cone}, LButton"));
     v.push_back(M(L"Building", L"Ramp + Wall", L"{Stair}, LButton, {Wall}, LButton"));
@@ -366,7 +366,7 @@ Config Config::Load(std::wstring* warning) {
             if (warning) *warning = L"macros.json was corrupt, so it was saved as macros.json.bad and the defaults were loaded.";
         }
     }
-    // The auto-build / sensitivity feature was removed; drop the macros it created.
+    // auto-build/sens feature is gone, remove its macros
     static const wchar_t* gone[] = {L"Right 90s", L"Left 90s", L"1x1 Box", L"Tunnel", L"Calibration 360",
                                     L"Double Edit: Side Walls", L"Double Edit: Wall + Floor"};
     auto& ms = c.macros;
@@ -379,7 +379,7 @@ Config Config::Load(std::wstring* warning) {
                                 return false;
                             }),
              ms.end());
-    // Old Edit Spam pressed and released the click in the same instant, so nothing got selected.
+    // old edit spam clicked too fast to select anything
     for (auto& m : ms)
         if (m.name == L"Edit Spam" && m.steps == L"{Edit}, LButton, {Edit}") {
             m.steps = L"{Edit}, LButton down, wait 5, LButton up, {Edit}";
@@ -391,7 +391,7 @@ Config Config::Load(std::wstring* warning) {
         if (m.name == L"Edit Reset" && m.steps == L"{Edit}, RButton, {Edit}")
             m.steps = L"{Edit}, RButton down, wait 5, RButton up, {Edit}";
     }
-    // Retakes that still have the old built-in steps get the pickaxe version.
+    // upgrade untouched retakes to the pickaxe version
     for (auto& m : ms) {
         for (const wchar_t* piece : {L"Wall", L"Floor", L"Stair", L"Cone"}) {
             std::wstring p = piece;
@@ -399,8 +399,7 @@ Config Config::Load(std::wstring* warning) {
                 m.steps = L"{Pickaxe}, LButton, wait 200, {Pickaxe}, {" + p + L"}, LButton";
         }
     }
-    // The built-in "Drag Edit (Confirm on Release)" is now plain Drag Edit plus the Edit/reset on
-    // release setting. Someone who used it gets that setting, and its key if Drag Edit was off.
+    // "Drag Edit (Confirm on Release)" -> Drag Edit + editOnRelease, keep the key if it was used
     auto named = [&](const wchar_t* n) { return std::find_if(ms.begin(), ms.end(), [&](auto& m) { return m.name == n; }); };
     if (auto old = named(L"Drag Edit (Confirm on Release)");
         old != ms.end() && old->steps == L"{Edit}, LButton down" && old->releaseSteps == L"LButton up") {
@@ -460,7 +459,7 @@ std::string MacroToJson(const Macro& m) { return json::Write(MacroValue(m), fals
 // ---------------------------------------------------------------- steps
 
 void AdaptForEditOnRelease(std::vector<Step>& press, std::vector<Step>& release, int editVk) {
-    bool editing = false, finished = false;  // carried from press into release (Drag Edit)
+    bool editing = false, finished = false;  // carries over into release (drag edit)
     for (auto* list : {&press, &release}) {
         std::vector<Step> out;
         for (auto& s : *list) {
@@ -586,7 +585,7 @@ std::vector<StepToken> TokenizeSteps(std::wstring_view t, const Binds& binds) {
 // ---------------------------------------------------------------- recorder
 
 std::vector<InputEvent> RecorderClean(const std::vector<InputEvent>& rawIn) {
-    // Alt+Tab into the game at the start of a recording isn't part of the macro.
+    // drop the alt+tab at the start
     std::vector<InputEvent> raw;
     size_t start = 0;
     while (start < rawIn.size() && rawIn[start].key == kMouseMove) start++;
@@ -620,9 +619,9 @@ std::vector<InputEvent> RecorderClean(const std::vector<InputEvent>& rawIn) {
         }
         list.push_back(e);
     }
-    // Moving the mouse back to the app after the last input isn't part of the macro.
+    // drop mouse moves after the last input (going back to the app)
     while (!list.empty() && list.back().key == kMouseMove) list.pop_back();
-    // The click on "Stop" itself lands as a final left-button press.
+    // and the click on "Stop"
     if (!list.empty() && list.back().key == VK_LBUTTON && list.back().down) {
         list.pop_back();
         held.erase(std::remove(held.begin(), held.end(), VK_LBUTTON), held.end());
@@ -677,7 +676,7 @@ std::wstring ShareExport(const Macro& src) {
 
 Macro ShareImport(std::wstring code) {
     code = Trim(code);
-    // Recorded mouse paths make long codes, so allow more than the .NET version's 8000.
+    // mouse paths make long codes, .NET limit was 8000
     if (code.rfind(kPrefix, 0) != 0 || code.size() > 60000) throw FormatError{L"That isn't a Macro Tool share code."};
     std::vector<uint8_t> raw;
     if (!Base64Decode(Narrow(code.substr(4)), raw)) throw FormatError{L"The share code is damaged (copy all of it)."};

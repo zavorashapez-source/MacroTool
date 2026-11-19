@@ -76,7 +76,7 @@ void ApplyFrameStyle(HWND h) {
     DwmSetWindowAttribute(h, 33 /*DWMWA_WINDOW_CORNER_PREFERENCE*/, &corner, sizeof corner);
     COLORREF border = RGB(0x2A, 0x31, 0x42);
     DwmSetWindowAttribute(h, 34 /*DWMWA_BORDER_COLOR*/, &border, sizeof border);
-    MARGINS m{0, 0, 0, 1};  // keeps the DWM drop shadow on a frameless window
+    MARGINS m{0, 0, 0, 1};  // keep dwm shadow
     DwmExtendFrameIntoClientArea(h, &m);
 }
 
@@ -237,8 +237,7 @@ LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM w, LPARAM l) {
     return DefWindowProcW(h, msg, w, l);
 }
 
-// Renders a scenario offscreen to a PNG, used to check the design without touching
-// the user's desktop, config or input hooks.
+// --shot: render a scene to png, no hooks/config
 int RunShot(int argc, wchar_t** argv) {
     std::wstring scenario = argv[2], out = argv[3];
     float W = 1280, H = 820, scale = 1.f, at = 2.5f, mx = -10000, my = -10000;
@@ -333,16 +332,16 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, LPWSTR, int show) {
     if (argc >= 2 && std::wstring(argv[1]) == L"--selftest") return RunSelfTest(argc >= 3 ? argv[2] : L"");
     if (argc >= 3 && std::wstring(argv[1]) == L"--write-icon") return WriteIcon(argv[2]);
     if (argc >= 4 && std::wstring(argv[1]) == L"--shot") return RunShot(argc, argv);
-    // --licensetest <key> <out file>: runs a real activation and writes the outcome.
+    // --licensetest <key> <out>
     if (argc >= 4 && std::wstring(argv[1]) == L"--licensetest") {
         LicenseResult r = License::Activate(argv[2]);
         WriteFileAtomic(argv[3], Narrow(r.ok ? L"OK " + r.plan + L" " + std::to_wstring(r.expiry) : L"FAIL " + r.error));
         return r.ok ? 0 : 1;
     }
-    // --osd-png <on|off> <path>: renders the toggle popup to a PNG for a look.
+    // --osd-png <on|off> <path>
     if (argc >= 4 && std::wstring(argv[1]) == L"--osd-png")
         return Osd::RenderPng(std::wstring(argv[2]) == L"on", argv[3]) ? 0 : 1;
-    // --menu-png <path>: renders the in-game menu with sample macros.
+    // --menu-png <path> (dummy macros)
     if (argc >= 3 && std::wstring(argv[1]) == L"--menu-png") {
         std::vector<Menu::Column> cols = {
             {kCategories[0].name, kCategories[0].glyph, {{1, L"Fast Edit", L"Mouse 5", true}, {2, L"Reset Edit", L"F", false}}},
@@ -352,7 +351,7 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, LPWSTR, int show) {
             {kCategories[3].name, kCategories[3].glyph, {{7, L"Ping", L"Mouse 4", true}}}};
         return Menu::RenderPng(cols, true, argv[2]) ? 0 : 1;
     }
-    // --checksig <timestamp> <signature hex> <body file>: checks a saved KeyAuth response.
+    // --checksig <timestamp> <sig hex> <body file>
     if (argc >= 5 && std::wstring(argv[1]) == L"--checksig") {
         std::string body;
         ReadFileBytes(argv[4], body);
@@ -361,7 +360,7 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, LPWSTR, int show) {
         return ok ? 0 : 1;
     }
 
-    // A second copy would hook the keyboard twice and fire every macro twice.
+    // one instance only, otherwise every macro fires twice
     HANDLE single = CreateMutexW(nullptr, TRUE, L"Local\\MacroTool.Native.Instance");
     if (GetLastError() == ERROR_ALREADY_EXISTS) {
         if (HWND other = FindWindowW(kClass, nullptr)) {
@@ -379,7 +378,7 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, LPWSTR, int show) {
         return 1;
     }
     UI* ui = new UI(*g);
-    App* app = new App(*g, *ui);  // never freed: worker threads may still finish while the process exits
+    App* app = new App(*g, *ui);  // leaked on purpose, workers may still run on exit
     gG = g;
     gUi = ui;
     gApp = app;
@@ -414,7 +413,7 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, LPWSTR, int show) {
     Menu::Init(h, WM_APP_MENU);
     app->Init(h, false);
 
-    // Show the first frame fully drawn instead of flashing an empty window.
+    // cloak until the first frame so it doesn't flash
     BOOL cloak = TRUE;
     DwmSetWindowAttribute(h, DWMWA_CLOAK, &cloak, sizeof cloak);
     ShowWindow(h, show == SW_SHOWMINIMIZED ? SW_SHOWMINIMIZED : SW_SHOWNORMAL);

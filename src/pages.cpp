@@ -142,7 +142,7 @@ void App::ImportMacro() {
         [this](const std::wstring& code) {
             try {
                 if (IsPackCode(code)) {
-                    // Whole-setup pack: import every macro at once.
+                    // MTP1 pack, imports everything
                     MacroPack pack = PackImport(code);
                     int ok = 0;
                     for (auto& m : pack.macros) {
@@ -492,7 +492,7 @@ void App::PageCategory(const Rect& area) {
     ui.EndScroll(sid, y - area.y + 16);
 }
 
-// Draws the macros of one category as rows from `y`; returns where the list ends.
+// macro rows for a category, returns bottom y
 float App::MacroList(const std::wstring& category, float x, float y, float w, int firstRow) {
     std::vector<Macro*> list;
     for (auto& m : cfg_.macros)
@@ -524,7 +524,7 @@ void App::MacroRow(Macro& m, const Rect& r) {
     auto iss = issues_.find(m.id);
     const Issue* issue = iss == issues_.end() ? nullptr : &iss->second;
 
-    // Whole row is a button (opens the editor): springy dip on press.
+    // whole row opens the editor
     float rsp = ui.Spring(HashId(id, 0xB7), it.held ? 1.f : 0.f, 460.f, 28.f);
     ui.PushScale(1.f - 0.014f * rsp, r.Cx(), r.Cy());
     g.Round(r, 12, Mix(T.panel, T.panel2, it.hoverT * 0.9f));
@@ -797,7 +797,7 @@ void App::PageProfiles(const Rect& area) {
         return;
     }
     ID sid = HashId(L"scroll-Profiles");
-    // Header: share your whole setup (all macros + binds) as one code.
+    // setup code header
     {
         Rect hdr{area.x, area.y, area.w, 40};
         if (ui.Button(HashId(L"prof-import"), {hdr.R() - 142, hdr.y, 142, 40}, L"Import code", Btn::Primary, L""))
@@ -1212,7 +1212,7 @@ void App::DrawEditor(const Rect& box, bool input) {
         if (ui.Button(HashId(L"ed-rec"), rb, L"Record", Btn::Secondary, L"")) ToggleRecord();
     }
     y += 22;
-    // Quick-insert chips: tap to add a step without typing it.
+    // quick insert chips
     {
         auto insert = [&](const std::wstring& tok) {
             std::wstring t = Trim(e.steps);
@@ -1438,7 +1438,7 @@ void App::PreviewSetup(const std::wstring& s) {
     double now = NowSeconds();
     lastFired_ = L"Single Edit";
     lastFiredAt_ = now - 4.2;
-    // Made-up activity so the dashboard has something to show in screenshots.
+    // fake stats for screenshots
     const wchar_t* names[] = {L"Single Edit", L"Box Up", L"Wall Retake", L"Drag Edit", L"Ramp Rush", L"Edit Reset"};
     const int weights[] = {38, 22, 16, 12, 7, 5};
     for (int d = 0; d < 30; d++) {

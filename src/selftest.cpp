@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <set>
 
-// Same checks as the .NET version's --selftest, plus the new code paths.
+// ported from the .NET --selftest + new stuff
 int RunSelfTest(const std::wstring& reportPath) {
     std::wstring rep;
     int fails = 0;

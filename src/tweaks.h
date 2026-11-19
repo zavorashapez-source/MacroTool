@@ -6,7 +6,7 @@ struct TweakError {
     std::wstring msg;
 };
 
-// Power plan GUIDs the app remembers between runs (stored in macros.json).
+// power plan guids, saved in macros.json
 struct PowerState {
     std::wstring prev, max;
 };

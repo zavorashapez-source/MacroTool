@@ -1,6 +1,5 @@
-// Ed25519 signature verification (RFC 8032), following the structure of TweetNaCl
-// (public domain). Only verification is needed: the license server signs, we check.
-// Curve constants are derived at runtime instead of hard-coded.
+// ed25519 verify only (RFC 8032), based on TweetNaCl (public domain).
+// curve constants get computed at startup.
 #include "license.h"
 #include <bcrypt.h>
 #include <cstring>
@@ -170,7 +169,7 @@ void ScalarMult(gf p[4], gf q[4], const uint8_t* s, const Consts& k) {
     }
 }
 
-// Decodes a point and negates it (what verification needs for the public key).
+// decode + negate (verify needs -A)
 bool UnpackNeg(gf r[4], const uint8_t p[32], const Consts& k) {
     gf t, chk, num, den, den2, den4, den6;
     Set(r[2], gf1);
@@ -270,7 +269,7 @@ bool Sha512(const uint8_t* data, size_t n, uint8_t out[64]) {
     return st == 0;
 }
 
-// The scalar half of a signature must be below the group order.
+// S must be < L
 bool ScalarCanonical(const uint8_t* s) {
     for (int i = 31; i >= 0; i--) {
         if (s[i] < L[i]) return true;

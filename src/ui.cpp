@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <cwctype>
 
-// Deep cool charcoal with a luminous periwinkle accent: layered and premium.
+// dark theme
 const Theme kDark = {
     Rgb(0x121318), Rgb(0x16171D), Rgb(0x1B1D24), Rgb(0x23262F), Rgb(0x2B2F3A), Rgb(0x17181E), Rgb(0x2B2F3A),
     Rgb(0x3A3F4C), Rgb(0xF6F8FB), Rgb(0xAAB1C0), Rgb(0x6C7380), Rgb(0x8AB0FF), Rgb(0xC6D9FF), Rgb(0x6E8FE6),
@@ -283,7 +283,7 @@ bool UI::Button(ID id, const Rect& r, std::wstring_view label, Btn style, const 
                 bool onPress) {
     Interact it = Press(id, r, enabled);
     PushAlpha(enabled ? 1.f : 0.45f);
-    // Springy press: dips in on press, pops back with a little bounce on release.
+    // press anim: dip + small bounce back
     float sp = Spring(HashId(id, 0xB7), it.held ? 1.f : 0.f, 460.f, 26.f);
     PushScale(1.f - 0.06f * sp, r.Cx(), r.Cy());
     Color fg = T.text;

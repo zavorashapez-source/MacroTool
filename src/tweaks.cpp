@@ -97,7 +97,7 @@ std::wstring RegString(HKEY k, const std::wstring& name) {
     return s;
 }
 
-// Runs a console program hidden and returns what it printed on stdout (or stderr).
+// run a console tool hidden, return its output
 std::string Run(const std::wstring& exe, const std::wstring& args, bool wantStderr, DWORD* exitCode = nullptr) {
     SECURITY_ATTRIBUTES sa{sizeof sa, nullptr, TRUE};
     HANDLE rd, wr;
@@ -174,8 +174,8 @@ std::vector<std::wstring> GamePaths() {
     PROCESSENTRY32W pe{sizeof pe};
     for (BOOL ok = Process32FirstW(snap, &pe); ok; ok = Process32NextW(snap, &pe)) {
         if (!IEquals(pe.szExeFile, kExe)) continue;
-        // Limited-information access works even for anti-cheat protected processes,
-        // where reading the main module (what the .NET version did) is denied.
+        // limited info access works on anti-cheat protected processes too
+        // (reading the main module like the .NET version did gets denied)
         HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pe.th32ProcessID);
         if (!h) continue;
         wchar_t path[MAX_PATH * 2];
@@ -348,7 +348,7 @@ std::wstring EmptyRecycleBin() {
 }
 
 std::wstring EndBackgroundApps() {
-    // Kill common FPS-eating background processes.
+    // kill the usual fps eaters
     DWORD killed = 0;
     HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     PROCESSENTRY32W e{ sizeof(e) };

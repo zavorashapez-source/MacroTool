@@ -13,11 +13,11 @@ extern std::atomic<bool> dryRun;
 void Send(int vk, bool down);
 // Relative mouse movement in raw counts.
 void Move(int dx, int dy);
-// Sends key-up for anything a macro left held (app exit, macros switched off).
+// key-up for anything still held (exit / macros off)
 void ReleaseStuck();
 }  // namespace Input
 
-// Feed for the Tester page: macro starts and every key the engine sends.
+// for the Tester page
 struct TesterEvent {
     bool fire = false;
     std::wstring macro;
@@ -42,8 +42,7 @@ struct EngineMsg {
 
 class Engine {
 public:
-    // Hooks run on their own high-priority thread, so a busy UI can never make Windows
-    // drop them (the .NET version hooked on the UI thread).
+    // hooks get their own high prio thread so a busy UI can't make windows drop them
     void Start(HWND notify, UINT msg);
     void Shutdown();
 
@@ -55,13 +54,13 @@ public:
     void CancelCapture();
     bool Capturing() const { return capture_.load(); }
 
-    // Esc stops a recording from inside the game.
+    // Esc ends recording (works in game)
     void BeginRecord();
     std::vector<InputEvent> EndRecord();
     bool Recording() const { return recording_.load(); }
     size_t RecordCount();
 
-    // While the user types into one of our text boxes, keys go to the text box, not to macros.
+    // typing in one of our text boxes -> no macros
     void SetTyping(bool typing, HWND mainWnd) {
         typing_ = typing;
         mainWnd_ = mainWnd;
@@ -70,9 +69,9 @@ public:
     std::vector<EngineMsg> Drain();
     bool IsRunning(int macroId);
 
-    // Locked = no license: every key passes straight through and nothing fires.
+    // locked: everything passes through, nothing fires
     void SetLocked(bool locked);
-    bool ForegroundIsGame();  // hook thread; cached by foreground window
+    bool ForegroundIsGame();  // hook thread only (cached)
     bool Handle(int key, bool down);  // hook thread
 
 private:
@@ -83,7 +82,7 @@ private:
         std::vector<Step> press, release;
         int holdMs = 0, stepDelay = 0, repeatDelay = 1;
         bool repeat = false, toggle = false, block = false;
-        bool editKind = false;  // Editing/Building macro: eligible for the stuck-edit guard
+        bool editKind = false;  // edit/build macro, stuck-edit guard applies
         std::wstring sig;
     };
     struct Run {
@@ -100,7 +99,7 @@ private:
     void ReleaseAllLocked();
     void Worker(std::shared_ptr<Run> r);
     void RunSteps(const std::vector<Step>& steps, const Compiled& c);
-    void MaybeEditReset();  // worker thread; taps reset if still in the edit overlay
+    void MaybeEditReset();  // worker thread
     void Post(EngineMsg m);
 
     std::mutex mu_;
@@ -119,12 +118,12 @@ private:
     std::atomic<bool> recording_{false};
     std::atomic<bool> typing_{false};
     std::atomic<bool> locked_{false};
-    std::atomic<bool> humanize_{false};  // Frame Better: small random timing so inputs look human
+    std::atomic<bool> humanize_{false};  // frame better jitter
     std::atomic<bool> onlyInGame_{false};
-    std::atomic<bool> editGuard_{false};        // auto-reset when stuck in edit mode
+    std::atomic<bool> editGuard_{false};        // stuck edit auto reset
     std::atomic<int> editResetVk_{'G'};         // key tapped to leave edit mode
     std::atomic<bool> editKeyCheck_{false};     // throttle rapid edit/build fires
-    std::atomic<long long> lastEditMs_{0};      // last edit-macro start (ms), for the throttle
+    std::atomic<long long> lastEditMs_{0};      // ms, for the throttle
     HWND lastFg_ = nullptr;  // hook thread only
     bool lastFgGame_ = false;
     std::atomic<HWND> mainWnd_{nullptr};

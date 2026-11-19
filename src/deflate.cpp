@@ -222,7 +222,7 @@ bool Inflate(const uint8_t* src, size_t n, std::vector<uint8_t>& out, size_t max
 }
 
 std::vector<uint8_t> Deflate(const uint8_t* src, size_t n) {
-    // Single fixed-Huffman block with greedy LZ77 over hash chains: tiny and plenty for share codes.
+    // one fixed huffman block + greedy lz77, good enough for share codes
     constexpr int kWin = 32768, kHash = 1 << 15;
     std::vector<int> head(kHash, -1), prev(n ? n : 1, -1);
     auto hash = [&](size_t i) { return ((src[i] << 10) ^ (src[i + 1] << 5) ^ src[i + 2]) & (kHash - 1); };

@@ -501,7 +501,7 @@ ID2D1PathGeometry* Gfx::CurvePath(const std::vector<D2D1_POINT_2F>& p, bool clos
     for (size_t i = 0; i + 1 < n; i++) {
         D2D1_POINT_2F t0 = tangent(i), t1 = tangent(i + 1);
         D2D1_POINT_2F c1{p[i].x + t0.x / 3, p[i].y + t0.y / 3}, c2{p[i + 1].x - t1.x / 3, p[i + 1].y - t1.y / 3};
-        // Keep control points between the two values so the curve never overshoots.
+        // clamp control points so the curve doesn't overshoot
         float lo = std::min(p[i].y, p[i + 1].y), hi = std::max(p[i].y, p[i + 1].y);
         c1.y = std::clamp(c1.y, lo, hi);
         c2.y = std::clamp(c2.y, lo, hi);

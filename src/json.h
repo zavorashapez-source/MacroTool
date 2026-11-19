@@ -3,7 +3,7 @@
 #include <string_view>
 #include <vector>
 
-// Small JSON DOM: keeps object member order, strings are UTF-8.
+// minimal json dom (keeps key order, utf-8 strings)
 namespace json {
 
 struct Member;

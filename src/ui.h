@@ -14,7 +14,7 @@ struct Theme {
     Color primary, onPrimary;  // filled buttons and highlighted cards
     float shadow;
 };
-// The live palette; the app blends it between kDark and kLight when the theme changes.
+// current palette (blended between kDark/kLight on theme switch)
 extern Theme T;
 extern const Theme kDark, kLight;
 Theme LerpTheme(const Theme& a, const Theme& b, float t);
@@ -59,8 +59,7 @@ struct Interact {
     float hoverT = 0, pressT = 0;
 };
 
-// Immediate-mode UI: widgets are functions called every frame; per-widget state
-// (animations, caret, scroll) lives in maps keyed by ID.
+// immediate mode ui. widget state (anims, caret, scroll) lives in maps keyed by ID
 class UI {
 public:
     explicit UI(Gfx& g) : g(g) {}
@@ -79,9 +78,9 @@ public:
     void Begin(double now);
     void End();
 
-    // Exponential approach; `from` (if >= -1e8) seeds a new entry so it animates in.
+    // exp. approach, `from` seeds new entries
     float Anim(ID id, float target, float speed = 14.f, float from = -1e9f);
-    // Damped spring, overshoots a little.
+    // spring, slight overshoot
     float Spring(ID id, float target, float k = 380.f, float c = 30.f);
     void SetAnim(ID id, float v);
     void Keep() { needFrame = true; }
@@ -110,14 +109,14 @@ public:
     bool Slider(ID id, const Rect& r, int& v, int lo, int hi, bool enabled = true);
     bool Segmented(ID id, const Rect& r, const std::vector<std::wstring>& items, int& sel);
     TextBoxResult TextBox(ID id, const Rect& r, std::wstring& text, const TextBoxOpts& o);
-    // Editable number with - / + steppers; returns true when the value changed.
+    // number box with -/+, true if changed
     bool NumberField(ID id, const Rect& r, double& v, double lo, double hi, double step, int decimals);
     void Spinner(float cx, float cy, float r, Color c, float w = 2.f);
     void Skeleton(const Rect& r, float rad);
     void Tag(const Rect& r, std::wstring_view text, Color c);
 
     float BeginScroll(ID id, const Rect& view);
-    // `fade` (if opaque) draws a soft edge where more content continues below.
+    // fade: soft edge at the bottom when there's more
     void EndScroll(ID id, float contentH, Color fade = {0, 0, 0, 0});
     void ScrollReset(ID id);
 

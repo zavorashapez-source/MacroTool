@@ -65,7 +65,7 @@ void App::Shutdown() {
     }
 }
 
-// One column per category that has macros, in sidebar order.
+// columns for the Insert menu
 static std::vector<Menu::Column> MenuColumns(const Config& cfg) {
     std::vector<Menu::Column> cols;
     for (auto& cat : kCategories) {
@@ -174,7 +174,7 @@ void App::ApplyCapture(int vk) {
     switch (c.kind) {
         case Capture::MacroKey:
             if (Macro* m = FindMacro(c.macroId)) {
-                if (m->trigger.empty()) m->enabled = true;  // a fresh macro is ready once it has a key
+                if (m->trigger.empty()) m->enabled = true;  // new macro, turn it on once it has a key
                 m->trigger = name;
                 Changed();
                 if (vk == toggleVk) ShowToast(L"That's the on/off key, so this macro won't fire.", 2);
@@ -241,7 +241,7 @@ void App::OnEngine() {
                 cfg_.enabled = engine_.Enabled();
                 SaveCfg();
                 if (!cfg_.enabled) running_.clear();
-                Osd::Flash(cfg_.enabled);  // brief in-game on/off popup
+                Osd::Flash(cfg_.enabled);
                 Menu::Update(MenuColumns(cfg_), cfg_.enabled);
                 break;
             case EngineMsg::Menu:
@@ -430,7 +430,7 @@ void App::HandleKeys() {
                 }
             }
         } else if (k.vk == VK_OEM_2 && !k.shift && !k.ctrl && ui.focus == 0 && !top && !menu_.open) {
-            // "/" jumps to search, like the dashboard it's modelled on.
+            // "/" = search
             ui.focus = searchId;
             searchSel_ = 0;
             auto& ch = ui.in.chars;
@@ -460,17 +460,17 @@ void App::Caption(const std::wstring& text, float x, float y, Color c) {
 
 float App::RowAppear(int i) {
     if (ui.reduceMotion) return 1.f;
-    // Snappy staggered cascade: each row ~0.34s, whole list well under 1s.
+    // row stagger, ~0.34s each
     float t = (float)((ui.time - pageStart_ - i * 0.05) / 0.34);
     if (t < 1) ui.Keep();
-    return EaseOutBack(t) * 0.06f + EaseOut(t) * 0.94f;  // gentle settle, no harsh stop
+    return EaseOutBack(t) * 0.06f + EaseOut(t) * 0.94f;
 }
 
 void App::Card(const Rect& r) {
-    g.Shadow(r, 14, 22, 0.22f, 7);  // soft elevation
+    g.Shadow(r, 14, 22, 0.22f, 7);
     g.Round(r, 14, T.panel);
     g.RoundStroke(r, 14, T.border);
-    g.Fill({r.x + 14, r.y + 1, r.w - 28, 1}, WithA(T.text, 0.045f));  // top sheen
+    g.Fill({r.x + 14, r.y + 1, r.w - 28, 1}, WithA(T.text, 0.045f));  // highlight line
 }
 
 void App::CardTitle(const Rect& r, const std::wstring& title, const std::wstring& legend, Color legendC) {
@@ -506,7 +506,7 @@ void App::Frame(float W, float H) {
     W_ = W;
     H_ = H;
     holes_.clear();
-    // Our own Animations toggle overrides the Windows "reduce motion" setting.
+    // our toggle wins over windows reduce motion
     if (!preview_) ui.reduceMotion = !cfg_.animations;
     float light = ui.Anim(0x7EE3E, cfg_.theme == L"Light" ? 1.f : 0.f, 7.f);
     T = LerpTheme(kDark, kLight, light);
@@ -530,7 +530,7 @@ void App::Frame(float W, float H) {
     bool layered = base > 0.003f && g.BeginLayer();
     if (layered) g.Clear(T.bg);
     ui.inputOn = top < 0 && !menu_.open && !tutActive;
-    // thin title strip, like a plain desktop window
+    // title strip
     g.Fill({0, 0, W, kChrome}, T.side);
     g.Fill({0, kChrome - 1, W, 1}, T.border);
     g.Text(L"Macro Tool", {18, 0, 300, kChrome}, T.dim, F::Small);
@@ -568,7 +568,7 @@ void App::Frame(float W, float H) {
     engine_.SetTyping(ui.focus != 0, hwnd_);
 }
 
-// A short "Welcome to Macro Tool" splash on launch: soft fade + spring-in logo.
+// startup splash
 void App::DrawSplash(float W, float H) {
     if (splashAt_ < 0) return;
     float s = (float)(ui.time - splashAt_);
@@ -585,7 +585,7 @@ void App::DrawSplash(float W, float H) {
     float pop = EaseOutBack(Clamp01(s / 0.6f));
     float cx = W / 2, cy = H / 2 - 24;
     ui.PushAlpha(a);
-    // soft glow behind the mark
+    // glow
     g.RadialGlow(cx, cy, 160 + 20 * std::sin(ui.time * 1.6), 160, WithA(T.accent, 0.10f));
     ui.PushScale(0.7f + 0.3f * pop, cx, cy);
     DrawLogo(g, {cx - 34, cy - 34, 68, 68});
@@ -670,7 +670,7 @@ void App::DrawSidebar(float sideW) {
         g.Text(s, b, Mix(Mix(T.faint, T.dim, sel), T.accent, p), F::Small, kRight);
         ui.PopAlpha();
     };
-    // One sidebar entry; `active` tints it like the screenshot's selected item.
+    // sidebar item, active = highlighted
     auto item = [&](const std::wstring& label, const wchar_t* glyph, bool active, ID id, float h = 42.f) {
         Rect r{12, y, sideW - 24, h};
         Interact it = ui.Press(id, r);
@@ -704,7 +704,7 @@ void App::DrawSidebar(float sideW) {
         if (page_ == kCategories[i].name) inGroup = true;
     {
         auto [it, r] = item(L"Macros", L"", inGroup, HashId(L"nav-Macros"));
-        // Springy roll so opening the group feels alive, not a hard snap.
+        // group open/close anim
         float gt = ui.Spring(HashId(L"grp-open"), macrosOpen_ ? 1.f : 0.f, 300.f, 30.f);
         float gtc = Clamp01(gt);
         if (open > 0.02f) {
@@ -722,14 +722,14 @@ void App::DrawSidebar(float sideW) {
         float childT = gtc * open;
         if (childT > 0.004f) {
             float full = 5 * 38.f;
-            float roll = EaseOut(childT);  // height eases open with a soft landing
+            float roll = EaseOut(childT);
             float h = full * roll;
             ui.PushClip({0, y, sideW, h + 2});
             float cy = y;
             for (int i = 0; i < 5; i++) {
                 std::wstring name = kCategories[i].name;
                 bool sel = page_ == name;
-                // Each row cascades in just after the roll reaches it.
+                // rows come in after the roll reaches them
                 float rev = EaseOut(Clamp01((childT - i * 0.10f) / 0.5f));
                 Rect cr{24, cy, sideW - 36, 36};
                 ID cid = HashId(L"nav-" + name);
@@ -1302,7 +1302,7 @@ void App::SignOut(const std::wstring& why) {
     License::ForgetKey();
 }
 
-// Shown instead of the app until a KeyAuth key checks out.
+// key entry screen
 void App::DrawLicenseGate(float W, float H) {
     float t = ui.Anim(0x11CE5E, 1.f, 6.f, 0.f);
     Rect card{std::round((W - 440) / 2), std::round((H - 380) / 2 + 10 * (1 - t)), 440, 380};
@@ -1345,7 +1345,7 @@ void App::DrawLicenseGate(float W, float H) {
     ui.PopAlpha();
 }
 
-// First-run walkthrough: a few centred cards explaining the Fortnite setup.
+// first run tutorial
 void App::DrawTutorial(float W, float H) {
     struct Step {
         const wchar_t* glyph;
