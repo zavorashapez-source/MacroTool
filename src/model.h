@@ -7,6 +7,13 @@ constexpr int kWheelUp = 14;
 constexpr int kWheelDown = 15;
 // fake key for relative mouse moves
 constexpr int kMouseMove = -1;
+// controller buttons use the gamepad vks windows reserves (A..right stick click).
+// they only work as triggers, there's no way to send them.
+constexpr int kPadFirst = 0xC3, kPadLast = 0xD2;
+inline bool IsPadKey(int vk)
+{
+    return vk >= kPadFirst && vk <= kPadLast;
+}
 
 std::wstring KeyName(int vk);
 bool KeyParse(std::wstring_view s, int &vk);

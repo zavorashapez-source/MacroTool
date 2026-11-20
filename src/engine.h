@@ -59,6 +59,26 @@ class Engine
     // hooks get their own high prio thread so a busy UI can't make windows drop them
     void Start(HWND notify, UINT msg);
     void Shutdown();
+    // controller presses arrive as this thread message: wParam = pad vk, lParam = down
+    static constexpr UINT kPadMsg = WM_USER + 1;
+    DWORD HookThreadId()
+    {
+        return hookThread_.joinable() ? GetThreadId(hookThread_.native_handle()) : 0;
+    }
+    // live key state for the Main page picture. it only gets repaint messages while it watches.
+    void SetLive(HWND wnd, UINT msg)
+    {
+        liveMsg_ = msg;
+        liveWnd_ = wnd;
+    }
+    void WatchLive()
+    {
+        liveUntil_ = QpcToMs(QpcNow()) + 600;
+    }
+    bool LiveDown(int vk) const
+    {
+        return vk >= 0 && vk < 256 && (live_[vk >> 6].load() >> (vk & 63) & 1);
+    }
 
     void Reindex(const Config &cfg);
     void SetEnabled(bool on);
@@ -153,8 +173,12 @@ class Engine
     std::atomic<int> editResetVk_{'G'};     // key tapped to leave edit mode
     std::atomic<bool> editKeyCheck_{false}; // throttle rapid edit/build fires
     std::atomic<int> pullOutVk_{0};         // {Weapon} key, 0 = pull out off
-    std::atomic<long long> lastEditMs_{0};  // ms, for the throttle
-    HWND lastFg_ = nullptr;                 // hook thread only
+    std::atomic<uint64_t> live_[4]{};       // held keys, bit per vk
+    std::atomic<double> liveUntil_{0};
+    std::atomic<HWND> liveWnd_{nullptr}; // set after liveMsg_, read on the hook thread
+    UINT liveMsg_ = 0;
+    std::atomic<long long> lastEditMs_{0}; // ms, for the throttle
+    HWND lastFg_ = nullptr;                // hook thread only
     bool lastFgGame_ = false;
     std::atomic<HWND> mainWnd_{nullptr};
     std::atomic<int> toggleVk_{VK_F8};

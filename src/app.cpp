@@ -55,6 +55,9 @@ void App::Init(HWND hwnd, bool preview)
         Monitor::Configure(cfg_.timing, cfg_.pingHost);
         engine_.SetLocked(false); // no license gate
         engine_.Start(hwnd, WM_APP_ENGINE);
+        Pad::Start(engine_.HookThreadId(), Engine::kPadMsg, hwnd, WM_APP_PAD);
+        engine_.SetLive(hwnd, WM_APP_PAD);
+        RefreshDevices();
         Osd::SetEnabled(cfg_.osd);
         licensed_ = true;
         lic_.expiry = 0;
@@ -75,6 +78,7 @@ void App::Shutdown()
     {
         if (stats_.dirty)
             stats_.Save();
+        Pad::Stop(); // before the hook thread it posts to goes away
         engine_.Shutdown();
         Monitor::Shutdown();
     }
@@ -172,6 +176,8 @@ const wchar_t *App::PageGlyph(const std::wstring &p) const
     for (auto &c : kCategories)
         if (p == c.name)
             return c.glyph;
+    if (p == L"Main")
+        return L"\xE772";
     if (p == L"Dashboard")
         return L"";
     if (p == L"Tweaks")
@@ -217,6 +223,12 @@ void App::ApplyCapture(int vk)
     ui.SetAnim(HashId(c.chip, 0x99), 1.f);
     int toggleVk = VK_F8;
     KeyParse(cfg_.toggleKey, toggleVk);
+    if (IsPadKey(vk) && (c.kind == Capture::BindKey || c.kind == Capture::ResetKey))
+    {
+        // these get pressed by the app, and it can't press controller buttons
+        ShowToast(L"That needs a keyboard or mouse key, a controller button can't be sent.", 2);
+        return;
+    }
     switch (c.kind)
     {
     case Capture::MacroKey:
@@ -773,7 +785,9 @@ void App::DrawBase()
     Rect header{sideW_ + 36, kTopH + 28, W_ - sideW_ - 72, 56};
     DrawHeader(header);
     Rect area{header.x, header.B() + 26, header.w, H_ - header.B() - 26};
-    if (page_ == L"Dashboard")
+    if (page_ == L"Main")
+        PageMain(area);
+    else if (page_ == L"Dashboard")
         PageDashboard(area);
     else if (IsMacroPage())
         PageCategory(area);
@@ -874,6 +888,11 @@ void App::DrawSidebar(float sideW)
     };
 
     section(L"Main Menu");
+    {
+        auto [it, r] = item(L"Main", PageGlyph(L"Main"), page_ == L"Main", HashId(L"nav-Main"));
+        if (it.clicked)
+            Navigate(L"Main");
+    }
     {
         auto [it, r] = item(L"Dashboard", L"", page_ == L"Dashboard", HashId(L"nav-Dashboard"));
         if (it.clicked)
@@ -1157,8 +1176,8 @@ std::vector<App::SearchHit> App::SearchResults()
 {
     std::vector<SearchHit> hits;
     std::wstring q = Lower(Trim(search_));
-    std::vector<std::wstring> pages = {L"Dashboard", L"Editing", L"Building", L"Movement", L"Utility",
-                                       L"Custom",    L"Tweaks",  L"Tester",   L"Profiles", L"Settings"};
+    std::vector<std::wstring> pages = {L"Main",   L"Dashboard", L"Editing", L"Building", L"Movement", L"Utility",
+                                       L"Custom", L"Tweaks",    L"Tester",  L"Profiles", L"Settings"};
     for (auto &p : pages)
         if (q.empty() || Lower(p).find(q) != std::wstring::npos)
             hits.push_back({p, L"Page", p, PageGlyph(p), 0});
@@ -1237,7 +1256,11 @@ void App::DrawSearchResults()
 void App::DrawHeader(const Rect &r)
 {
     std::wstring title = page_, sub;
-    if (page_ == L"Dashboard")
+    if (page_ == L"Main")
+    {
+        sub = L"What's plugged in, and what every key does";
+    }
+    else if (page_ == L"Dashboard")
     {
         sub = L"See how your macros perform and how often they fire, live.";
     }

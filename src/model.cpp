@@ -109,6 +109,12 @@ const std::vector<KeyDef> &KeyTable()
                            {252, L"NoName"},
                            {253, L"Pa1"},
                            {254, L"OemClear"}});
+        // same order as the vks, see kPadFirst
+        const wchar_t *pad[] = {L"PadA",    L"PadB",    L"PadX",  L"PadY",    L"PadRB",   L"PadLB",
+                                L"PadLT",   L"PadRT",   L"PadUp", L"PadDown", L"PadLeft", L"PadRight",
+                                L"PadMenu", L"PadView", L"PadLS", L"PadRS"};
+        for (int i = 0; i <= kPadLast - kPadFirst; i++)
+            t.push_back({kPadFirst + i, pad[i]});
         return t;
     }();
     return table;
@@ -189,6 +195,8 @@ std::wstring Pretty(std::wstring_view k)
         return std::wstring(k.substr(1));
     if (k.size() == 7 && k.substr(0, 6) == L"NumPad")
         return L"Num " + std::wstring(k.substr(6));
+    if (k.size() > 3 && k.substr(0, 3) == L"Pad")
+        return L"Pad " + std::wstring(k.substr(3));
     return std::wstring(k);
 }
 
@@ -735,6 +743,8 @@ int ParseKey(std::wstring name, const Binds &binds)
     int vk;
     if (!KeyParse(name, vk))
         throw FormatError{L"Unknown key '" + name + L"'"};
+    if (IsPadKey(vk))
+        throw FormatError{L"Controller buttons can only be a trigger, macros can't press them"};
     return vk;
 }
 

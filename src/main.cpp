@@ -268,6 +268,12 @@ LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM w, LPARAM l)
         gApp->OnTasks();
         gNeedFrame = true;
         return 0;
+    case WM_APP_PAD:
+        gNeedFrame = true;
+        return 0;
+    case WM_DEVICECHANGE:
+        gApp->RefreshDevices();
+        break;
     case WM_APP_MENU:
         gApp->OnMenu((int)w);
         gNeedFrame = true;

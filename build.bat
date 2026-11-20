@@ -14,7 +14,7 @@ if errorlevel 1 goto novc
 if not exist obj mkdir obj
 if not exist bin mkdir bin
 set "CFLAGS=/nologo /std:c++20 /EHsc /O2 /MT /W3 /utf-8 /DUNICODE /D_UNICODE /DNOMINMAX /GL /Gy"
-set "LIBS=user32.lib gdi32.lib ole32.lib shell32.lib advapi32.lib d2d1.lib dwrite.lib windowscodecs.lib dwmapi.lib dxguid.lib winmm.lib iphlpapi.lib ws2_32.lib uuid.lib comdlg32.lib winhttp.lib bcrypt.lib crypt32.lib"
+set "LIBS=user32.lib gdi32.lib ole32.lib shell32.lib advapi32.lib d2d1.lib dwrite.lib windowscodecs.lib dwmapi.lib dxguid.lib winmm.lib iphlpapi.lib ws2_32.lib uuid.lib comdlg32.lib winhttp.lib bcrypt.lib crypt32.lib hid.lib xinput.lib"
 rem /DEBUG:NONE = zadne .pdb ani jmena funkci v exe.
 set "LFLAGS=/nologo /LTCG /OPT:REF /OPT:ICF /SUBSYSTEM:WINDOWS /MANIFEST:NO /DEBUG:NONE"
 

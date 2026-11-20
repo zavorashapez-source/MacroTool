@@ -410,6 +410,14 @@ void Engine::HookThread()
     HHOOK hm = SetWindowsHookExW(WH_MOUSE_LL, MsProc, GetModuleHandleW(nullptr), 0);
     while (GetMessageW(&m, nullptr, 0, 0) > 0)
     {
+        if (!m.hwnd && m.message == kPadMsg)
+        {
+            // controller button from the pad thread. same path as a key, but it can't be
+            // blocked and a recording can't use it
+            if (!recording_)
+                Handle((int)m.wParam, m.lParam != 0);
+            continue;
+        }
         TranslateMessage(&m);
         DispatchMessageW(&m);
     }
@@ -635,6 +643,16 @@ void Engine::SetLocked(bool locked)
 
 bool Engine::Handle(int k, bool down)
 {
+    if (k >= 0 && k < 256)
+    {
+        uint64_t bit = 1ull << (k & 63);
+        if (down)
+            live_[k >> 6] |= bit;
+        else
+            live_[k >> 6] &= ~bit;
+        if (liveWnd_ && QpcToMs(QpcNow()) < liveUntil_.load())
+            PostMessageW(liveWnd_, liveMsg_, 0, 0);
+    }
     if (locked_)
         return false;
     std::lock_guard lk(mu_);

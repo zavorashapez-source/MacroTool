@@ -1,9 +1,12 @@
 #include "deflate.h"
+#include "devices.h"
 #include "json.h"
 #include "license.h"
 #include "model.h"
 #include "monitor.h"
+#include "pad.h"
 #include "tweaks.h"
+#include <Xinput.h>
 #include <algorithm>
 #include <set>
 
@@ -63,6 +66,32 @@ int RunSelfTest(const std::wstring &reportPath)
         check(adapt(L"{Wall}, LButton, {Edit}, LButton down, wait 5, LButton up, {Edit}").first ==
                   ParseSteps(L"{Wall}, LButton, {Edit}, LButton down, wait 5, LButton up", b),
               L"edit on release keeps the tap that opens edit mode");
+    }
+    {
+        int vk = 0;
+        check(KeyParse(L"PadRB", vk) && vk == kPadFirst + 4 && KeyName(vk) == L"PadRB" && Pretty(L"PadRB") == L"Pad RB",
+              L"controller buttons have key names");
+        check(KeyParse(L"PadRS", vk) && vk == kPadLast && IsPadKey(vk) && !IsPadKey(VK_LBUTTON),
+              L"controller key range");
+        check(throws([&] { ParseSteps(L"PadA", b); }), L"macros can't press controller buttons");
+        check(Pad::ButtonBits(XINPUT_GAMEPAD_A | XINPUT_GAMEPAD_RIGHT_SHOULDER | XINPUT_GAMEPAD_RIGHT_THUMB, 200, 10) ==
+                  (1 << 0 | 1 << 4 | 1 << 6 | 1 << 15),
+              L"xinput buttons and triggers map to pad keys");
+        uint16_t v = 0, p = 0;
+        check(ParseVidPid(L"\\\\?\\HID#VID_046D&PID_C539&MI_01&Col01#8&1d0f#{884b96c3}", v, p) && v == 0x046D &&
+                  p == 0xC539,
+              L"vid/pid from a usb path");
+        check(ParseVidPid(L"\\\\?\\HID#{00001124-0000-1000-8000-00805f9b34fb}_VID&0002054c_PID&0ce6#9&2", v, p) &&
+                  v == 0x054C && p == 0x0CE6,
+              L"vid/pid from a bluetooth path");
+        check(!ParseVidPid(L"\\\\?\\ACPI#PNP0303#4&2f94427b&0#{884b96c3}", v, p), L"built-in keyboard has no vid/pid");
+        Device ds{DevKind::Controller, L"Sony", L"DualSense", L"USB", 0x054C, 0x0CE6};
+        Device sw{DevKind::Controller, L"", L"Pro Controller", L"USB", 0x057E, 0x2009};
+        Device xb{DevKind::Controller, L"", L"Controller (Xbox One For Windows)", L"USB", 0x045E, 0x02FF};
+        check(BrandFor(0x1532) == L"Razer" && BrandFor(0x1234).empty() && PadName(0x054C, 0x0CE6) == L"DualSense" &&
+                  PadStyleFor(ds) == PadStyle::PlayStation && PadStyleFor(sw) == PadStyle::Nintendo &&
+                  PadStyleFor(xb) == PadStyle::Xbox,
+              L"device brands and controller styles");
     }
 
     bool defaultsOk = true;

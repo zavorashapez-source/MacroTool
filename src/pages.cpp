@@ -27,6 +27,8 @@ void App::Navigate(const std::wstring &p)
     }
     if (p == L"Profiles")
         RefreshProfiles();
+    if (p == L"Main")
+        RefreshDevices();
     if (p == L"Tester")
     {
         Tester::SetListening(true);
@@ -1742,6 +1744,30 @@ void App::PreviewSetup(const std::wstring &s)
     {
         cfg_.theme = L"Light";
         T = kLight;
+    }
+    if (s.rfind(L"main", 0) == 0)
+    {
+        // made-up devices and a half-pressed pad for the Main page shots
+        bool xbox = s.find(L"xbox") != std::wstring::npos, noPad = s.find(L"nopad") != std::wstring::npos;
+        devices_ = {{DevKind::Keyboard, L"Wooting", L"60HE+", L"USB", 0x31E3, 0x1312},
+                    {DevKind::Mouse, L"Logitech", L"G Pro X Superlight 2", L"Wireless", 0x046D, 0xC547}};
+        if (!noPad)
+            devices_.push_back(
+                xbox ? Device{DevKind::Controller, L"Microsoft", L"Xbox Series X|S Controller", L"USB", 0x045E, 0x0B12}
+                     : Device{DevKind::Controller, L"Sony", L"DualSense", L"Bluetooth", 0x054C, 0x0CE6});
+        padPreview_ = true;
+        padShot_.connected = !noPad;
+        padShot_.buttons = 1 << 4 | 1 << 0; // RB + A held
+        padShot_.lx = 0.7f;
+        padShot_.ly = 0.4f;
+        padShot_.rt = 0.65f;
+        padShot_.battery = 2;
+        set(L"Edit Spam", L"PadRB", true);
+        set(L"Crouch Spam", L"PadRS", true);
+        set(L"Cone Jump", L"PadLB", true);
+        set(L"Auto Sprint", L"LShiftKey", true);
+        mainDev_ = s.find(L"mouse") != std::wstring::npos ? 1 : s.find(L"pad") != std::wstring::npos || xbox ? 2 : 0;
+        Navigate(L"Main");
     }
     if (s.find(L"-collapsed") != std::wstring::npos)
         cfg_.sidebarCollapsed = true;

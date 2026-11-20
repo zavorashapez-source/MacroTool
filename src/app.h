@@ -1,6 +1,8 @@
 #pragma once
+#include "devices.h"
 #include "engine.h"
 #include "license.h"
+#include "pad.h"
 #include "tweaks.h"
 #include "ui.h"
 #include <deque>
@@ -13,6 +15,7 @@ constexpr UINT WM_APP_TESTER = WM_APP + 2;
 constexpr UINT WM_APP_MONITOR = WM_APP + 3;
 constexpr UINT WM_APP_TASK = WM_APP + 4;
 constexpr UINT WM_APP_MENU = WM_APP + 5; // wParam = macro id (menu click)
+constexpr UINT WM_APP_PAD = WM_APP + 6;  // controller state changed (Main page)
 
 constexpr float kSideOpen = 256.f;
 constexpr float kSideClosed = 76.f;
@@ -57,6 +60,8 @@ class App
     }
     void OnTasks();
     void OnMenu(int id);
+    // re-reads the connected devices in the background (startup, plug/unplug)
+    void RefreshDevices();
     void OnActivate(bool active);
     int HitTest(float x, float y);
     std::wstring StartupWarning;
@@ -244,6 +249,27 @@ class App
     void PageTester(const Rect &area);
     void PageProfiles(const Rect &area);
     void PageSettings(const Rect &area);
+    // Main page (mainpage.cpp)
+    using BindMap = std::map<int, std::vector<const Macro *>>;
+    using BindList = std::vector<std::pair<int, const Macro *>>;
+    struct Anchor // where a callout line starts on the picture
+    {
+        int vk;
+        float x, y;
+        bool left;
+    };
+    void PageMain(const Rect &area);
+    void MainTabs(const Rect &r, const Device *const devs[3], const int counts[3], const bool online[3]);
+    void Stage(const Rect &r);
+    void DrawKeyboard(const Rect &r, const BindMap &binds);
+    void DrawMouse(const Rect &r, const BindMap &binds, std::vector<Anchor> &anchors);
+    void DrawPad(const Rect &r, PadStyle style, const Pad::State &st, bool live, const BindMap &binds,
+                 std::vector<Anchor> &anchors);
+    void Callouts(const std::vector<Anchor> &anchors, const BindMap &binds, float leftX, float rightX, float top,
+                  float bottom, PadStyle style);
+    float BindRows(float x, float y, float w, const BindList &items, PadStyle style);
+    float KeyFlash(const std::vector<const Macro *> &ms);
+    float MainAppear(float delay, float dur = 0.4f);
     float MacroList(const std::wstring &category, float x, float y, float w, int firstRow);
     void MacroRow(Macro &m, const Rect &r);
     bool KeyCap(ID id, const Rect &r, const std::wstring &label, bool empty, bool capturing, float fire, bool lit,
@@ -284,6 +310,13 @@ class App
     std::unordered_map<int, Issue> issues_;
     std::set<int> running_;
     std::unordered_map<int, double> flash_;
+    std::vector<Device> devices_;
+    bool devicesBusy_ = false, devicesAgain_ = false;
+    bool padPreview_ = false; // --shot: fake controller instead of xinput
+    Pad::State padShot_;
+    int mainDev_ = 0, mainDir_ = 1; // shown device: 0 keyboard, 1 mouse, 2 controller
+    double mainSwitchAt_ = -10;
+    int mainHot_ = 0, mainHotNext_ = 0; // key hovered in a list / callout / picture
     std::deque<Recent> recent_;
     std::wstring lastFired_;
     double lastFiredAt_ = -1;
