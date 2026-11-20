@@ -2,7 +2,7 @@
 
 Free macro tool for Fortnite, written in C++ (Win32 + Direct2D). You bind a key to a
 list of key/mouse presses and it plays them back. Edits, builds, movement, whatever.
-No key needed, source is all here.
+No key needed.
 
 It only sends the inputs you set up yourself. No aimbot, no triggerbot, no ESP. The
 only thing that looks at the screen is Edit Fix (off by default): it checks a few
@@ -11,6 +11,10 @@ if you got stuck in edit mode.
 
 ## Features
 
+- Main page: your keyboard, mouse and controller with which macro sits on which key,
+  live as you press them
+- Controller support: controller buttons can trigger macros (Xbox pads right away,
+  PlayStation and Switch pads through Steam Input or DS4Windows)
 - Macro engine on low-level hooks, running on its own high priority thread so timing
   stays tight even when the PC is busy
 - Frame timing. "Frame better" adds a tiny random jitter so taps register reliably,
@@ -44,22 +48,9 @@ if you got stuck in edit mode.
 ### Defender says it's a virus
 
 It's an unsigned exe that runs as admin and hooks the keyboard, so some antivirus
-engines flag it (usually as `Wacatac`). That's a false positive. The source is right
-here, read it or build it yourself. To run it click More info > Run anyway in
-SmartScreen, or allow it in Defender. A signing certificate would fix this but it
-costs money.
-
-## Building
-
-You need Visual Studio 2022 with "Desktop development with C++". Then run:
-
-```
-build.bat
-```
-
-You get `bin\MacroTool.exe` (asks for admin) and `bin\MacroTool-dev.exe` (no UAC
-prompt, for testing). It's built with `/O2 /MT /LTCG` and no PDB, so it's a single
-~1 MB exe with no DLLs.
+engines flag it (usually as `Wacatac`). That's a false positive. To run it click More
+info > Run anyway in SmartScreen, or allow it in Defender. A signing certificate would
+fix this but it costs money.
 
 ## Shortcuts
 

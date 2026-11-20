@@ -1,8 +1,10 @@
-**MACRO TOOL is free now, full source included** 🎉
+**MACRO TOOL is free now** 🎉
 
 No key, no paywall. It's a macro tool for Fortnite written in C++, one exe, about 1 MB, no DLLs.
 
 **What's in it**
+- Main page: your keyboard, mouse and controller, and which macro is on which key
+- controller support: controller buttons can trigger macros
 - macro engine on low-level hooks with its own high priority thread
 - ready made macros: Single Edit, Drag Edit, Edit Reset, Edit Spam, Wall + Edit Peek and more
 - macro editor with syntax colours, quick insert buttons, recorder, repeat/toggle
@@ -20,8 +22,6 @@ No key, no paywall. It's a macro tool for Fortnite written in C++, one exe, abou
 2. Put your Fortnite keybinds and macro keys in Settings
 3. F8 = on/off, Insert = in-game menu
 
-**Antivirus:** it's unsigned and hooks the keyboard, so some antivirus will flag it (Wacatac etc). False positive. Source is included so you can check it or build it yourself. Click "Run anyway" or allow it in Defender.
-
-**Source** is in the zip, build it with `build.bat` (Visual Studio 2022).
+**Antivirus:** it's unsigned and hooks the keyboard, so some antivirus will flag it (Wacatac etc). False positive. Click "Run anyway" or allow it in Defender.
 
 Have fun 💙

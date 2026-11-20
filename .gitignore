@@ -5,3 +5,8 @@ macros.json
 stats.json
 license.dat
 menu-preview.png
+src/
+res/
+build.bat
+.clang-format
+MacroTool-FREE.zip

@@ -41,4 +41,4 @@
 
 **Changed**
 - "Drag Edit (Confirm on Release)" merged into Drag Edit, your old setup moves over by itself with the same key
-- Code and readme cleanup, full source included
+- Code and readme cleanup
