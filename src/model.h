@@ -69,6 +69,7 @@ struct Config
     std::wstring editResetKey = L"G";
     // min gap between edit/build fires so spam can't jam edit mode
     bool editKeyCheck = false;
+    bool pullOut = false; // tap {Weapon} after an edit macro
     Binds binds;
     std::vector<Macro> macros;
 

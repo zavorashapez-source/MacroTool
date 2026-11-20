@@ -1245,6 +1245,27 @@ void App::PageSettings(const Rect &area)
     ui.PopXf();
     ui.PopAlpha();
 
+    // extras
+    t = RowAppear(idx++);
+    ui.PushAlpha(t);
+    ui.PushOffset(0, 16 * (1 - t));
+    section(L"EXTRAS");
+    Rect ex{area.x, y, area.w, 70.f};
+    g.Round(ex, 14, T.panel);
+    g.RoundStroke(ex, 14, T.border);
+    g.Text(L"Enable Pull Out Macro", {ex.x + 20, ex.y + 15, ex.w - 160, 20}, T.text, F::Semi);
+    g.Text(L"Swaps back to your weapon after you finish an edit.", {ex.x + 20, ex.y + 38, ex.w - 160, 18}, T.dim,
+           F::Small);
+    bool po = cfg_.pullOut;
+    if (ui.Switch(HashId(L"pullout"), ex.R() - 20 - 40, ex.Cy() - 11, po))
+    {
+        cfg_.pullOut = po;
+        Changed();
+    }
+    y = ex.B() + 30;
+    ui.PopXf();
+    ui.PopAlpha();
+
     // binds
     t = RowAppear(idx++);
     ui.PushAlpha(t);

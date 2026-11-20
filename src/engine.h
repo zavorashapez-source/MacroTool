@@ -108,6 +108,7 @@ class Engine
         int holdMs = 0, stepDelay = 0, repeatDelay = 1;
         bool repeat = false, toggle = false, block = false;
         bool editKind = false; // edit/build macro, stuck-edit guard applies
+        bool pullOut = false;  // editing macro
         std::wstring sig;
     };
     struct Run
@@ -151,6 +152,7 @@ class Engine
     std::atomic<bool> editGuard_{false};    // stuck edit auto reset
     std::atomic<int> editResetVk_{'G'};     // key tapped to leave edit mode
     std::atomic<bool> editKeyCheck_{false}; // throttle rapid edit/build fires
+    std::atomic<int> pullOutVk_{0};         // {Weapon} key, 0 = pull out off
     std::atomic<long long> lastEditMs_{0};  // ms, for the throttle
     HWND lastFg_ = nullptr;                 // hook thread only
     bool lastFgGame_ = false;

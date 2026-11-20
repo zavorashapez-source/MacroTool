@@ -237,7 +237,8 @@ Config Config::Defaults()
                {L"Forward", L"W"},
                {L"Pickaxe", L"D1"},
                {L"Slot1", L"D2"},
-               {L"Slot2", L"D3"}};
+               {L"Slot2", L"D3"},
+               {L"Weapon", L"D2"}};
     auto &v = c.macros;
     Macro m;
     m = M(L"Editing", L"Single Edit", L"{Edit}, LButton down, wait 5, LButton up, {Edit}");
@@ -445,6 +446,7 @@ Config FromJson(const Value &v)
     GetBool(v, "EditGuard", c.editGuard);
     GetStr(v, "EditResetKey", c.editResetKey);
     GetBool(v, "EditKeyCheck", c.editKeyCheck);
+    GetBool(v, "PullOut", c.pullOut);
     if (auto *b = v.Get("Binds"); b && b->t == Value::Obj)
     {
         c.binds.clear();
@@ -490,6 +492,7 @@ Value ToJson(const Config &c)
     v.Set("EditGuard", Value::Boolean(c.editGuard));
     v.Set("EditResetKey", Value::String(Narrow(c.editResetKey)));
     v.Set("EditKeyCheck", Value::Boolean(c.editKeyCheck));
+    v.Set("PullOut", Value::Boolean(c.pullOut));
     Value b = Value::Object();
     for (auto &[k, val] : c.binds)
         b.Set(Narrow(k), Value::String(Narrow(val)));

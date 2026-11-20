@@ -458,6 +458,16 @@ void Engine::Reindex(const Config &cfg)
     editKeyCheck_ = cfg.editKeyCheck;
     int ek;
     editResetVk_ = KeyParse(cfg.editResetKey, ek) ? ek : 'G';
+    int weaponVk = 0;
+    if (cfg.pullOut)
+        try
+        {
+            weaponVk = ParseKey(L"{Weapon}", cfg.binds);
+        }
+        catch (const FormatError &)
+        {
+        }
+    pullOutVk_ = weaponVk;
     timing_ = 0; // only frame timing remains
     humanize_ = cfg.timing == L"FrameHuman";
 
@@ -495,6 +505,7 @@ void Engine::Reindex(const Config &cfg)
             c->toggle = m.toggle;
             c->block = m.blockTrigger;
             c->editKind = m.category == L"Editing" || m.category == L"Building";
+            c->pullOut = m.category == L"Editing";
             c->sig = Fmt(L"%d|%d|%d|%d|%d%d%d|", k, c->holdMs, c->stepDelay, c->repeatDelay, c->repeat, c->toggle,
                          c->block) +
                      Sig(c->press) + L"|" + Sig(c->release);
@@ -783,6 +794,14 @@ void Engine::Worker(std::shared_ptr<Run> r)
         MaybeEditReset();
     WaitForSingleObject(r->cancel, INFINITE);
     RunSteps(c.release, c);
+    // pull out: edit is fully done now (drag edit confirms in its release steps)
+    if (int vk = pullOutVk_.load(); vk && c.pullOut && enabled_.load() && FgIsGame())
+    {
+        Wait(std::max(c.stepDelay, 10), nullptr);
+        Input::Send(vk, true);
+        Wait(8, nullptr);
+        Input::Send(vk, false);
+    }
     std::lock_guard lk(mu_);
     auto it = active_.find(c.id);
     if (it != active_.end() && it->second == r)
