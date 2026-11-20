@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2
+
+**New**
+- Pull Out macro (Settings > Extras): swaps back to your weapon after you finish an edit. Works with all Editing macros, Drag Edit included
+- New {Weapon} bind under Game keybinds, set it to the key you pull your weapon out with (default 2)
+
 ## v1.1
 
 **New**
