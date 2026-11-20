@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.3
+
+**New**
+- Main page: your keyboard, mouse and controller with brand, model and how they're connected, and which macro sits on which key. Hover a key to see its macro, click it to edit
+- Live view: keys, mouse buttons and controller buttons light up on the picture when you press them
+- Controller support: controller buttons can trigger macros. Set a macro's key and press the button. Xbox pads work right away, PlayStation and Switch pads through Steam Input or DS4Windows
+- Controller picture for Xbox, PlayStation and Switch layouts, with sticks, triggers and battery level
+
+**Good to know**
+- The game still gets controller presses, they can't be blocked like keyboard keys
+
 ## v1.2
 
 **New**
